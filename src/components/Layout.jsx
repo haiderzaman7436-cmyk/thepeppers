@@ -30,7 +30,6 @@ const Layout = () => {
     { path: '/', name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { path: '/pos', name: 'Point of Sale', icon: <MonitorSmartphone size={20} /> },
     { path: '/inventory', name: 'Inventory', icon: <Package size={20} /> },
-    { path: '/sales', name: 'Sales', icon: <ShoppingCart size={20} /> },
     { path: '/invoices', name: 'Invoices', icon: <Receipt size={20} /> },
   ];
 

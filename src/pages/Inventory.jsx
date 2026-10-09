@@ -24,10 +24,22 @@ const Inventory = () => {
   useEffect(() => {
     const q = query(collection(db, 'inventory'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const inventoryList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const inventoryList = [];
+      const seenNames = new Set();
+      
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const itemName = data.name ? data.name.trim() : '';
+        
+        if (itemName && !seenNames.has(itemName)) {
+          seenNames.add(itemName);
+          inventoryList.push({
+            id: doc.id,
+            ...data
+          });
+        }
+      });
+      
       // Sort items logically by category
       inventoryList.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
       setItems(inventoryList);

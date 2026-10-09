@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone } from 'lucide-react';
 
@@ -14,6 +14,8 @@ const POS = () => {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
+  const [selectedSizes, setSelectedSizes] = useState({}); // Keeps track of dropdown selections
+  const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
   
   // Two-tier navigation state
   const [mainCategory, setMainCategory] = useState('All');
@@ -30,22 +32,46 @@ const POS = () => {
   const categoryHierarchy = {
     'Deals': ['Student Deal', 'Zinger Deal', 'Shawarma Deal', 'Pizza Deal'],
     'Pizzas': ['Pizzas', 'Premium Pizzas', 'Platinum Pizzas'],
-    'Burgers & Wraps': ['Burgers', 'Wraps & Shawarma'],
-    'More': ['Platters', 'Snacks & Stakes', 'Drinks', 'Sauces', 'Other']
+    'Burgers & Wraps': ['Budget Bites', 'Premium Burgers', 'Wraps & Shawarma'],
+    'Platters': ['Platers', 'Platters'],
+    'Snacks': ['Snacks & Stakes'],
+    'Drinks': ['Drinks'],
+    'Sauces': ['Sauces'],
+    'Other': ['Other']
   };
 
-  const mainCategories = ['All', 'Deals', 'Pizzas', 'Burgers & Wraps', 'More'];
+  const mainCategories = ['All', 'Deals', 'Pizzas', 'Burgers & Wraps', 'Platters', 'Snacks', 'Drinks', 'Sauces', 'Other'];
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'inventory'), (snapshot) => {
-      const items = snapshot.docs.map(doc => {
+      const items = [];
+      const seenNames = new Set();
+      
+      snapshot.docs.forEach(doc => {
         const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          // We keep the exact category from the DB for the subcategory filtering
-          posCategory: data.category || 'Other'
-        };
+        let itemName = data.name ? data.name.trim() : '';
+        
+        // Dynamically strip size suffixes to consolidate duplicate pizza items from old DB data
+        if (itemName.toLowerCase().includes('pizza') && !itemName.toLowerCase().includes('deal')) {
+          itemName = itemName.replace(/\s*\((Small|Medium|Large|E\.Large|Extra Large)\)/ig, '').trim();
+        }
+        
+        if (itemName && !seenNames.has(itemName)) {
+          seenNames.add(itemName);
+          items.push({
+            id: doc.id,
+            ...data,
+            name: itemName, // Use the clean name
+            posCategory: data.category || 'Other'
+          });
+        }
+      });
+      
+      // Sort items alphabetically by name so deals and items appear in logical order (e.g. Deal 1, Deal 2)
+      items.sort((a, b) => {
+        if (a.name < b.name) return -1;
+        if (a.name > b.name) return 1;
+        return 0;
       });
       
       setInventory(items);
@@ -55,22 +81,97 @@ const POS = () => {
       setLoading(false);
     });
 
+    const fetchLatestOrderNumber = async () => {
+      try {
+        const invoicesSnapshot = await getDocs(collection(db, 'invoices'));
+        let maxId = 0;
+        invoicesSnapshot.forEach(doc => {
+          const data = doc.data();
+          const num = data.invoiceNumber || data.orderNumber || 0;
+          if (typeof num === 'number' && num > maxId) {
+            maxId = num;
+          } else if (typeof num === 'string' && !isNaN(parseInt(num, 10))) {
+            const parsed = parseInt(num, 10);
+            if (parsed > maxId) maxId = parsed;
+          }
+        });
+        setCurrentOrderNumber(maxId + 1);
+      } catch (err) {
+        console.error("Error fetching max order number:", err);
+      }
+    };
+    fetchLatestOrderNumber();
+
     return () => unsubscribe();
   }, []);
 
-  const addToCart = (item) => {
+  const addToCart = (item, explicitSize = null, explicitPrice = null) => {
     setCart(prevCart => {
-      const existingItem = prevCart.find(cartItem => cartItem.id === item.id);
+      let finalName = item.name;
+      let finalId = item.id;
+      let price = parsePrice(item.salePrice || item.price || 0);
+
+      // Handle Pizzas using the dropdown state
+      if (item.posCategory && item.posCategory.toLowerCase().includes('pizza') && !item.posCategory.toLowerCase().includes('deal')) {
+        const sizes = getPizzaSizes(item);
+        const selectedSize = explicitSize || selectedSizes[item.id] || sizes[0].label;
+        const sizeObj = sizes.find(s => s.label === selectedSize);
+        
+        finalName = `${item.name} (${selectedSize})`;
+        finalId = `${item.id}-${selectedSize}`;
+        price = explicitPrice !== null ? explicitPrice : (sizeObj ? sizeObj.price : price);
+      } else {
+        if (explicitSize) {
+          finalName = `${item.name} (${explicitSize})`;
+          finalId = `${item.id}-${explicitSize}`;
+        }
+        if (explicitPrice !== null) {
+          price = explicitPrice;
+        }
+      }
+
+      const existingItem = prevCart.find(cartItem => cartItem.id === finalId);
       if (existingItem) {
         return prevCart.map(cartItem => 
-          cartItem.id === item.id 
+          cartItem.id === finalId 
             ? { ...cartItem, quantity: cartItem.quantity + 1 }
             : cartItem
         );
       }
-      const price = parsePrice(item.salePrice || item.price || 0);
-      return [...prevCart, { ...item, quantity: 1, parsedPrice: price }];
+      return [...prevCart, { ...item, id: finalId, name: finalName, quantity: 1, parsedPrice: price }];
     });
+  };
+  
+  // Calculate smart prices based on category and range
+  const getPizzaSizes = (item) => {
+    const isPremium = item.posCategory && item.posCategory.toLowerCase().includes('premium');
+    const isPlatinum = item.posCategory && item.posCategory.toLowerCase().includes('platinum');
+    
+    if (isPlatinum) {
+      return [
+        { label: 'Small', price: 700 },
+        { label: 'Medium', price: 1050 },
+        { label: 'Large', price: 1400 },
+        { label: 'E.Large', price: 1800 }
+      ];
+    }
+    
+    if (isPremium) {
+      return [
+        { label: 'Small', price: 500 },
+        { label: 'Medium', price: 850 },
+        { label: 'Large', price: 1200 },
+        { label: 'E.Large', price: 1600 }
+      ];
+    }
+    
+    // Default Regular Pizza Pricing
+    return [
+      { label: 'Small', price: 400 },
+      { label: 'Medium', price: 750 },
+      { label: 'Large', price: 999 },
+      { label: 'E.Large', price: 1400 }
+    ];
   };
 
   const updateQuantity = (id, delta) => {
@@ -102,24 +203,48 @@ const POS = () => {
     setIsProcessing(true);
 
     try {
-      const nextInvoiceNumber = Math.floor(Math.random() * 1000000); 
       const totalAmount = calculateTotal();
+      const totalCost = cart.reduce((acc, curr) => acc + ((curr.costPrice ? parseInt(curr.costPrice.toString().replace(/\D/g, ''), 10) || 0 : 0) * curr.quantity), 0);
+      
       const newSale = {
-        invoiceNumber: nextInvoiceNumber,
+        invoiceNumber: currentOrderNumber,
+        orderNumber: currentOrderNumber,
         customer: customerName || 'Walk-in Customer',
         orderType: orderType,
         paymentMethod: paymentMethod,
         items: cart.reduce((acc, curr) => acc + curr.quantity, 0),
         total: `Rs ${totalAmount}`,
-        cartDetails: cart.map(c => ({ id: c.id, name: c.name, quantity: c.quantity, price: c.parsedPrice })),
+        totalCost: totalCost,
+        cartDetails: cart.map(c => ({ 
+          id: c.id, 
+          name: c.name, 
+          quantity: c.quantity, 
+          price: c.parsedPrice,
+          costPrice: c.costPrice ? parseInt(c.costPrice.toString().replace(/\D/g, ''), 10) || 0 : 0
+        })),
         date: new Date().toISOString().split('T')[0],
         status: 'Completed',
         createdAt: new Date()
       };
-      
       await addDoc(collection(db, 'invoices'), newSale);
       
-      // Optional: window.print();
+      // Update inventory stock levels
+      for (const cartItem of cart) {
+        try {
+          const baseId = cartItem.id.split('-')[0];
+          const docRef = doc(db, 'inventory', baseId);
+          const inventoryItem = inventory.find(i => i.id === baseId);
+          if (inventoryItem && typeof inventoryItem.quantity === 'number') {
+            const newQuantity = Math.max(0, inventoryItem.quantity - cartItem.quantity);
+            await updateDoc(docRef, { quantity: newQuantity });
+          }
+        } catch (e) {
+          console.error("Failed to update stock for item", cartItem.name, e);
+        }
+      }
+      
+      // Increment order number for next transaction
+      setCurrentOrderNumber(prev => prev + 1);
       
       setCart([]);
       setCustomerName('');
@@ -173,8 +298,8 @@ const POS = () => {
       {/* Items Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-white pt-1">
         
-        {/* Main Categories Navbar (Horizontal) */}
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar mb-3 pb-2 pt-1 px-1">
+        {/* Main Categories Navbar (Wraps to multiple lines) */}
+        <div className="flex flex-wrap items-center gap-3 mb-3 pb-2 pt-1 px-1">
           {mainCategories.map(cat => (
             <button
               key={cat}
@@ -229,15 +354,24 @@ const POS = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
               {filteredItems.map(item => {
+                const isPizza = item.posCategory && item.posCategory.toLowerCase().includes('pizza') && !item.posCategory.toLowerCase().includes('deal');
+                const pizzaSizes = isPizza ? getPizzaSizes(item) : [];
+                
                 let displayPrice = item.salePrice || item.price || 'N/A';
                 
-                // Format price cleanly (remove existing text like Rs/PKR)
-                if (typeof displayPrice === 'string') {
+                if (isPizza && pizzaSizes.length > 0) {
+                  const minPrice = Math.min(...pizzaSizes.map(s => s.price));
+                  const maxPrice = Math.max(...pizzaSizes.map(s => s.price));
+                  displayPrice = `${minPrice} - ${maxPrice}`;
+                } else if (typeof displayPrice === 'string') {
+                  // Format price cleanly (remove existing text like Rs/PKR)
                   const numMatch = displayPrice.match(/\d+/g);
                   if (numMatch) {
                     displayPrice = numMatch.join(' - ');
                   }
                 }
+                
+                const currentSelectedSize = selectedSizes[item.id] || (pizzaSizes.length > 0 ? pizzaSizes[0].label : null);
                 
                 // Premium Kiosk Formatting
                 const renderItemName = (name) => {
@@ -276,22 +410,50 @@ const POS = () => {
                   <div 
                     key={item.id} 
                     onClick={() => addToCart(item)}
-                    className="flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-100 hover:border-[var(--accent-primary)] active:bg-[var(--accent-primary)] active:border-[var(--accent-primary)] p-4 h-full cursor-pointer active:scale-95 group"
-                    style={{ minHeight: '140px' }}
+                    className="flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-100 hover:border-[var(--accent-primary)] active:border-[var(--accent-primary)] p-4 h-full cursor-pointer group"
+                    style={{ minHeight: '150px' }}
                   >
-                    <div className="flex-1 flex flex-col items-start justify-start text-left">
+                    <div className="flex-1 flex flex-col items-start justify-start text-left w-full">
                       {/* Title & Details */}
-                      <div className="w-full flex flex-col items-start mb-4">
+                      <div className="w-full flex flex-col items-start mb-3">
                         {renderItemName(item.name)}
                       </div>
                       
-                      {/* Price & Action */}
-                      <div className="w-full flex justify-between items-center mt-auto">
-                        <span className="font-bold text-base text-black group-active:text-white transition-colors">
-                          Rs {displayPrice}
-                        </span>
-                        <div className="w-7 h-7 rounded-full bg-[var(--accent-primary)] text-white flex items-center justify-center group-hover:scale-110 group-active:bg-white group-active:text-[var(--accent-primary)] transition-all shadow-sm">
-                          <Plus size={16} strokeWidth={3} />
+                      {/* Price, Dropdown & Action */}
+                      <div className="w-full flex flex-col mt-auto gap-3">
+                        {isPizza && pizzaSizes.length > 0 && (
+                          <div className="w-full">
+                            <select 
+                              value={currentSelectedSize}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setSelectedSizes(prev => ({ ...prev, [item.id]: e.target.value }));
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full p-1.5 text-xs font-bold bg-gray-50 border border-gray-200 rounded-lg text-black focus:outline-none focus:border-[var(--accent-primary)] cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              {pizzaSizes.map(size => (
+                                <option key={size.label} value={size.label}>
+                                  {size.label} (Rs {size.price})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        
+                        <div className="w-full flex justify-between items-center">
+                          <span className="font-bold text-base text-black transition-colors">
+                            Rs {displayPrice}
+                          </span>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(item);
+                            }}
+                            className="w-8 h-8 rounded-full bg-[var(--accent-primary)] text-white flex items-center justify-center hover:scale-110 active:bg-red-700 transition-all shadow-sm cursor-pointer"
+                          >
+                            <Plus size={18} strokeWidth={3} />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -419,6 +581,8 @@ const POS = () => {
         </div>
       </div>
 
+      {/* Modal removed in favor of dropdowns */}
+
       {/* Invoice Preview Modal */}
       {showInvoicePreview && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(4px)' }}>
@@ -437,7 +601,8 @@ const POS = () => {
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-black mb-1">THE PEPPER'S</h1>
                 <p className="text-secondary">Flavor & Spice</p>
-                <p className="text-secondary mt-2">Date: {new Date().toLocaleDateString()}</p>
+                <p className="text-secondary mt-2">Order / Invoice #: <span className="font-bold text-black">{currentOrderNumber}</span></p>
+                <p className="text-secondary">Date: {new Date().toLocaleDateString()}</p>
                 <p className="text-secondary">Customer: {customerName || 'Walk-in Customer'}</p>
               </div>
 

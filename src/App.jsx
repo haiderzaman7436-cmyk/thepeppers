@@ -20,7 +20,6 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="pos" element={<POS />} />
           <Route path="inventory" element={<Inventory />} />
-          <Route path="sales" element={<Sales />} />
           <Route path="invoices" element={<Invoices />} />
           <Route path="seed" element={<SeedMenu />} />
         </Route>
