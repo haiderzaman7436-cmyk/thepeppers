@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone } from 'lucide-react';
+import ThermalReceiptModal from '../components/ThermalReceiptModal';
+import { printThermalReceipt } from '../utils/thermalPrinter';
 
 const POS = () => {
   const [inventory, setInventory] = useState([]);
@@ -36,11 +38,10 @@ const POS = () => {
     'Platters': ['Platers', 'Platters'],
     'Snacks': ['Snacks & Stakes'],
     'Drinks': ['Drinks'],
-    'Sauces': ['Sauces'],
-    'Other': ['Other']
+    'Sauces': ['Sauces']
   };
 
-  const mainCategories = ['All', 'Deals', 'Pizzas', 'Burgers & Wraps', 'Platters', 'Snacks', 'Drinks', 'Sauces', 'Other'];
+  const mainCategories = ['All', 'Deals', 'Pizzas', 'Burgers & Wraps', 'Platters', 'Snacks', 'Drinks', 'Sauces'];
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'inventory'), (snapshot) => {
@@ -243,6 +244,25 @@ const POS = () => {
         }
       }
       
+      // Prepare 3-inch receipt data and directly send to NokoPrint / thermal printer
+      const receiptData = {
+        orderNumber: currentOrderNumber,
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        customer: customerName || 'Walk-in Customer',
+        orderType: orderType,
+        paymentMethod: paymentMethod,
+        items: cart.map(c => ({
+          name: c.name,
+          quantity: c.quantity,
+          price: c.parsedPrice
+        })),
+        total: `Rs ${totalAmount}`
+      };
+      
+      // Directly dispatch to NokoPrint printer
+      printThermalReceipt(receiptData);
+
       // Increment order number for next transaction
       setCurrentOrderNumber(prev => prev + 1);
       
@@ -583,78 +603,29 @@ const POS = () => {
 
       {/* Modal removed in favor of dropdowns */}
 
-      {/* Invoice Preview Modal */}
-      {showInvoicePreview && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-fade-in" style={{ width: '100%', maxWidth: '450px', maxHeight: '90vh' }}>
-            
-            {/* Modal Header */}
-            <div className="bg-gray-50 p-4 border-b flex justify-between items-center" style={{ borderColor: 'var(--border-color)' }}>
-              <h2 className="text-xl font-bold">Invoice Preview</h2>
-              <button onClick={() => setShowInvoicePreview(false)} className="text-secondary hover:text-danger">
-                <Trash2 size={24} />
-              </button>
-            </div>
-
-            {/* Receipt Content */}
-            <div className="p-6 overflow-y-auto flex-1 font-mono text-sm" style={{ backgroundColor: '#fff' }}>
-              <div className="text-center mb-6">
-                <h1 className="text-2xl font-black mb-1">THE PEPPER'S</h1>
-                <p className="text-secondary">Flavor & Spice</p>
-                <p className="text-secondary mt-2">Order / Invoice #: <span className="font-bold text-black">{currentOrderNumber}</span></p>
-                <p className="text-secondary">Date: {new Date().toLocaleDateString()}</p>
-                <p className="text-secondary">Customer: {customerName || 'Walk-in Customer'}</p>
-              </div>
-
-              <div className="border-t border-b py-3 mb-4 border-dashed" style={{ borderColor: '#ccc' }}>
-                <div className="flex justify-between font-bold mb-2">
-                  <span>Item</span>
-                  <span>Total</span>
-                </div>
-                {cart.map(item => (
-                  <div key={item.id} className="flex justify-between mb-2">
-                    <div className="flex-1 pr-4">
-                      {item.quantity}x {item.name}
-                    </div>
-                    <div>Rs {item.parsedPrice * item.quantity}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-between font-black text-xl mt-4">
-                <span>TOTAL DUE</span>
-                <span>Rs {calculateTotal()}</span>
-              </div>
-              <div className="text-center mt-8 text-secondary italic">
-                Thank you for your visit!
-              </div>
-            </div>
-
-            {/* Modal Footer Actions */}
-            <div className="p-4 border-t flex gap-4 bg-gray-50" style={{ borderColor: 'var(--border-color)' }}>
-              <button 
-                onClick={() => setShowInvoicePreview(false)}
-                className="flex-1 py-3 rounded-xl font-bold text-secondary bg-white border hover:bg-gray-100 transition-colors"
-                style={{ borderColor: 'var(--border-color)' }}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={confirmCheckout}
-                disabled={isProcessing}
-                className="flex-1 py-3 rounded-xl font-bold text-white shadow-md flex items-center justify-center gap-2"
-                style={{ backgroundColor: 'var(--success)' }}
-              >
-                {isProcessing ? 'Saving...' : (
-                  <>
-                    <CheckCircle size={20} /> Confirm & Print
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 3-Inch Professional Thermal Receipt Modal (NokoPrint Ready) */}
+      <ThermalReceiptModal 
+        isOpen={showInvoicePreview}
+        onClose={() => setShowInvoicePreview(false)}
+        data={{
+          orderNumber: currentOrderNumber,
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          customer: customerName || 'Walk-in Customer',
+          orderType: orderType,
+          paymentMethod: paymentMethod,
+          items: cart.map(c => ({
+            name: c.name,
+            quantity: c.quantity,
+            price: c.parsedPrice
+          })),
+          total: `Rs ${calculateTotal()}`
+        }}
+        showConfirmButton={true}
+        confirmButtonText="Confirm & Print"
+        onConfirm={confirmCheckout}
+        isProcessing={isProcessing}
+      />
 
     </div>
   );

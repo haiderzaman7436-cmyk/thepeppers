@@ -7,12 +7,12 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  Edit,
   Trash2,
   X
 } from 'lucide-react';
 import { collection, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 
 const StatCard = ({ title, value, icon, subtitle }) => (
   <div className="card">
@@ -234,12 +234,19 @@ const Dashboard = () => {
                     <td className="p-3 text-gray-600">{invoice.items} items</td>
                     <td className="p-3 font-bold text-[var(--accent-primary)]">{invoice.total}</td>
                     <td className="p-3 text-right">
-                      <button 
-                        onClick={() => setEditingInvoice(invoice)}
-                        className="p-2 text-[var(--accent-primary)] bg-red-50 hover:bg-red-100 rounded-lg font-bold text-sm transition-colors"
-                      >
-                        Edit Order
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <InvoiceDownloadButton 
+                          invoice={invoice} 
+                          variant="compact" 
+                          label="Download" 
+                        />
+                        <button 
+                          onClick={() => setEditingInvoice(invoice)}
+                          className="px-3 py-1.5 text-[var(--accent-primary)] bg-red-50 hover:bg-red-100 rounded-lg font-bold text-xs transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -283,19 +290,27 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between">
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between flex-wrap gap-2">
               <button 
                 onClick={() => handleDeleteInvoice(editingInvoice.id)}
-                className="px-6 py-2.5 rounded-xl font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors border border-red-100"
+                className="px-4 py-2.5 rounded-xl font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors border border-red-100 text-sm"
               >
-                <Trash2 size={18} /> Delete Entire Order
+                <Trash2 size={16} /> Delete Entire Order
               </button>
-              <button 
-                onClick={() => setEditingInvoice(null)}
-                className="px-8 py-2.5 rounded-xl font-bold text-white bg-[var(--accent-primary)] hover:bg-red-700 shadow-md transition-all"
-              >
-                Done Editing
-              </button>
+
+              <div className="flex items-center gap-2">
+                <InvoiceDownloadButton 
+                  invoice={editingInvoice} 
+                  variant="button" 
+                  label="Download" 
+                />
+                <button 
+                  onClick={() => setEditingInvoice(null)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-white bg-[var(--accent-primary)] hover:bg-red-700 shadow-md transition-all text-sm"
+                >
+                  Done Editing
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -269,3 +269,52 @@ tbody tr:hover {
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
+
+/* 3-Inch (80mm) Thermal Receipt & NokoPrint Printing */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+  
+  html, body {
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Hide regular UI on print */
+  #root,
+  .layout-wrapper,
+  .sidebar,
+  .topbar,
+  nav,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  #nokoprint-print-container {
+    display: block !important;
+    width: 3in !important;
+    max-width: 3in !important;
+    margin: 0 auto !important;
+    padding: 2mm !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .thermal-receipt-printable {
+    display: block !important;
+    width: 3in !important;
+    max-width: 3in !important;
+    margin: 0 auto !important;
+    padding: 10px !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+}
+

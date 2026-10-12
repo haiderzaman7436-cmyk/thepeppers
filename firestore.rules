@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // The Pepper's Restaurant POS & Management System Rules
+    // ===============================================================
+
+    // Helper function to check if user is logged into Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 1. INVOICES & ORDERS
+    // Used by POS for new orders, Invoices archive, and Dashboard daily reports
+    match /invoices/{invoiceId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // 2. INVENTORY & MENU
+    // Used by POS for product catalog, stock updates, and Inventory page
+    match /inventory/{itemId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // 3. SALES & RETURNS
+    // Used by Sales history page and return processing
+    match /sales/{saleId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // 4. USERS & STAFF
+    match /users/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Fallback for all other collections
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

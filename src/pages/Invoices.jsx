@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Printer, Mail, Database, ChevronDown, ChevronUp } from 'lucide-react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { FileText, Printer, Mail, Database, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
+import ThermalReceiptModal from '../components/ThermalReceiptModal';
+import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 
 const Invoices = () => {
   const [invoicesData, setInvoicesData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [expandedInvoice, setExpandedInvoice] = useState(null);
+  const [receiptModalInvoice, setReceiptModalInvoice] = useState(null);
 
   useEffect(() => {
     // We listen to invoices
@@ -42,12 +46,33 @@ const Invoices = () => {
     }
   };
 
+  const filteredInvoices = invoicesData.filter(inv => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    const orderNum = String(inv.orderNumber || inv.invoiceNumber || '').toLowerCase();
+    const customer = String(inv.customer || '').toLowerCase();
+    const date = String(inv.date || '').toLowerCase();
+    return orderNum.includes(term) || customer.includes(term) || date.includes(term);
+  });
+
   return (
     <div className="animate-fade-in pb-10">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold">Invoices Archive</h1>
           <p className="text-secondary text-sm mt-1">Complete historical record of all transactions.</p>
+        </div>
+
+        {/* Quick Search */}
+        <div className="relative w-full sm:w-72">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search invoice #, customer..."
+            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[var(--accent-primary)] shadow-sm transition-all"
+          />
         </div>
       </div>
 
@@ -56,13 +81,15 @@ const Invoices = () => {
           <div className="flex justify-center items-center py-12">
             <p className="text-secondary font-medium">Loading invoices...</p>
           </div>
-        ) : invoicesData.length === 0 ? (
+        ) : filteredInvoices.length === 0 ? (
           <div className="flex flex-col justify-center items-center py-12 gap-4">
             <Database size={48} className="text-gray-300" />
-            <p className="text-gray-400 font-medium">No invoices found in database.</p>
+            <p className="text-gray-400 font-medium">
+              {searchTerm ? 'No matching invoices found.' : 'No invoices found in database.'}
+            </p>
           </div>
         ) : (
-          invoicesData.map((invoice) => (
+          filteredInvoices.map((invoice) => (
             <div key={invoice.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all">
               <div 
                 className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -73,7 +100,7 @@ const Invoices = () => {
                     <FileText size={24} />
                   </div>
                   
-                  <div className="flex-1 grid grid-cols-4 gap-4 items-center">
+                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4 items-center">
                     <div>
                       <p className="text-xs text-gray-400 font-bold uppercase mb-0.5">Order / Invoice</p>
                       <p className="font-bold">#{invoice.orderNumber || invoice.invoiceNumber}</p>
@@ -94,8 +121,18 @@ const Invoices = () => {
                     </div>
                   </div>
                   
-                  <div className="text-gray-400 pr-2">
-                    {expandedInvoice === invoice.id ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                  <div className="flex items-center gap-2 pr-2" onClick={(e) => e.stopPropagation()}>
+                    <InvoiceDownloadButton 
+                      invoice={invoice} 
+                      variant="compact" 
+                      label="Download" 
+                    />
+                    <button 
+                      onClick={() => toggleExpand(invoice.id)}
+                      className="text-gray-400 hover:text-gray-700 p-1 rounded-lg"
+                    >
+                      {expandedInvoice === invoice.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -103,14 +140,24 @@ const Invoices = () => {
               {/* Expanded Details Area */}
               {expandedInvoice === invoice.id && (
                 <div className="border-t border-gray-100 bg-gray-50 p-6 animate-fade-in">
-                  <div className="flex justify-between items-start mb-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
                       <h3 className="font-bold text-lg mb-1">Order Details</h3>
                       <p className="text-sm text-gray-500">Order Type: <span className="font-bold text-gray-700">{invoice.orderType || 'N/A'}</span> • Payment: <span className="font-bold text-gray-700">{invoice.paymentMethod || 'Cash'}</span></p>
                     </div>
-                    <div className="flex gap-2">
-                      <button className="btn btn-secondary flex items-center gap-2 shadow-sm text-sm" style={{ padding: '0.5rem 1rem' }}>
-                        <Printer size={16} /> Print Receipt
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <InvoiceDownloadButton 
+                        invoice={invoice} 
+                        variant="button" 
+                        label="Download" 
+                      />
+
+                      <button 
+                        onClick={() => setReceiptModalInvoice(invoice)}
+                        className="btn btn-secondary flex items-center gap-2 shadow-sm text-xs font-bold hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]" 
+                        style={{ padding: '0.6rem 1rem' }}
+                      >
+                        <Printer size={15} /> Print Receipt (3")
                       </button>
                     </div>
                   </div>
@@ -149,6 +196,22 @@ const Invoices = () => {
           ))
         )}
       </div>
+
+      {/* 3-Inch Professional Thermal Receipt Modal (NokoPrint Ready) */}
+      <ThermalReceiptModal 
+        isOpen={!!receiptModalInvoice}
+        onClose={() => setReceiptModalInvoice(null)}
+        data={receiptModalInvoice ? {
+          orderNumber: receiptModalInvoice.orderNumber || receiptModalInvoice.invoiceNumber,
+          date: receiptModalInvoice.date,
+          time: receiptModalInvoice.createdAt?.toDate ? receiptModalInvoice.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+          customer: receiptModalInvoice.customer,
+          orderType: receiptModalInvoice.orderType || 'Dine In',
+          paymentMethod: receiptModalInvoice.paymentMethod || 'Cash',
+          items: receiptModalInvoice.cartDetails || [],
+          total: receiptModalInvoice.total
+        } : null}
+      />
     </div>
   );
 };
