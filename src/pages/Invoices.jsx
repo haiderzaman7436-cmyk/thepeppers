@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Printer, Mail, Database, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { FileText, Printer, Mail, Database, ChevronDown, ChevronUp, Search, RotateCw } from 'lucide-react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
@@ -9,6 +9,7 @@ const Invoices = () => {
   const [invoicesData, setInvoicesData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isReloading, setIsReloading] = useState(false);
   const [expandedInvoice, setExpandedInvoice] = useState(null);
   const [receiptModalInvoice, setReceiptModalInvoice] = useState(null);
 
@@ -55,6 +56,15 @@ const Invoices = () => {
     return orderNum.includes(term) || customer.includes(term) || date.includes(term);
   });
 
+  const handleReload = () => {
+    setIsReloading(true);
+    setLoading(true);
+    setTimeout(() => {
+      setIsReloading(false);
+      setLoading(false);
+    }, 400);
+  };
+
   return (
     <div className="animate-fade-in pb-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -63,16 +73,27 @@ const Invoices = () => {
           <p className="text-secondary text-sm mt-1">Complete historical record of all transactions.</p>
         </div>
 
-        {/* Quick Search */}
-        <div className="relative w-full sm:w-72">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search invoice #, customer..."
-            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[var(--accent-primary)] shadow-sm transition-all"
-          />
+        {/* Quick Search & Reload */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-72">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search invoice #, customer..."
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[var(--accent-primary)] shadow-sm transition-all"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleReload}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all shrink-0 cursor-pointer"
+            title="Reload Invoices list"
+          >
+            <RotateCw size={15} className={isReloading ? "animate-spin text-[var(--accent-primary)]" : ""} />
+            <span>Reload</span>
+          </button>
         </div>
       </div>
 

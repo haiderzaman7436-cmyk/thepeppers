@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, CheckCircle, X, Receipt, Smartphone, Type, Scissors, Sliders } from 'lucide-react';
+import { Printer, CheckCircle, X, Receipt, Smartphone, Type, Scissors, Sliders, RotateCcw, RotateCw } from 'lucide-react';
 import { 
   printThermalReceipt, 
   openDirectNokoPrint, 
@@ -22,6 +22,7 @@ const ThermalReceiptModal = ({
   confirmButtonText = "Confirm & Print"
 }) => {
   const [printSuccess, setPrintSuccess] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
 
   // User-customizable receipt preferences (persisted in localStorage)
   const [fontStyle, setFontStyle] = useState(() => {
@@ -109,6 +110,30 @@ const ThermalReceiptModal = ({
         window.localStorage.setItem('thepeppers_thermal_show_barcode', String(value));
       }
     }
+  };
+
+  const handleReloadReceipt = () => {
+    setIsReloading(true);
+    // Reset all receipt options back to default standard settings
+    setFontStyle('sans');
+    setFontSize('standard');
+    setPaperLength('auto');
+    setShowLogo(true);
+    setShowStoreInfo(true);
+    setShowBarcode(true);
+
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem('thepeppers_thermal_font_style');
+      window.localStorage.removeItem('thepeppers_thermal_font_size');
+      window.localStorage.removeItem('thepeppers_thermal_paper_length');
+      window.localStorage.removeItem('thepeppers_thermal_show_logo');
+      window.localStorage.removeItem('thepeppers_thermal_show_info');
+      window.localStorage.removeItem('thepeppers_thermal_show_barcode');
+    }
+
+    setTimeout(() => {
+      setIsReloading(false);
+    }, 400);
   };
 
   const {
@@ -202,13 +227,25 @@ const ThermalReceiptModal = ({
               </div>
             </div>
 
-            <button 
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-800 hover:bg-gray-200 p-1 rounded-lg transition-colors"
-              title="Close"
-            >
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleReloadReceipt}
+                className="flex items-center gap-1 text-[11px] font-bold text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg transition-all active:scale-95 shadow-2xs cursor-pointer"
+                title="Reload & Reset to default receipt options"
+              >
+                <RotateCcw size={12} className={isReloading ? "animate-spin text-red-600" : ""} />
+                <span>{isReloading ? 'Reloading...' : 'Reload'}</span>
+              </button>
+
+              <button 
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-800 hover:bg-gray-200 p-1 rounded-lg transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
           {/* ALL RECEIPT OPTIONS CONTROLS TOOLBAR */}
@@ -306,8 +343,8 @@ const ThermalReceiptModal = ({
                 </div>
               </div>
 
-              {/* Elements Checkboxes */}
-              <div className="flex items-center justify-between sm:justify-end gap-2.5">
+              {/* Elements Checkboxes & Reset */}
+              <div className="flex items-center justify-between sm:justify-end gap-2.5 flex-wrap">
                 <label className="flex items-center gap-1 cursor-pointer text-[11px] font-semibold text-gray-700 select-none">
                   <input
                     type="checkbox"
@@ -335,6 +372,15 @@ const ThermalReceiptModal = ({
                   />
                   Barcode
                 </label>
+                <button
+                  type="button"
+                  onClick={handleReloadReceipt}
+                  className="flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-[var(--accent-primary)] hover:bg-red-50 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                  title="Reset all receipt customizations to defaults"
+                >
+                  <RotateCcw size={11} className={isReloading ? "animate-spin text-red-600" : ""} />
+                  Reset
+                </button>
               </div>
             </div>
           </div>
@@ -575,12 +621,23 @@ const ThermalReceiptModal = ({
 
         {/* Modal Action Buttons Footer */}
         <div className="bg-gray-50 px-3 sm:px-4 py-3 border-t border-gray-200 flex items-center justify-between gap-2 shrink-0">
-          <button 
-            onClick={onClose}
-            className="px-3 py-2 rounded-xl font-bold text-xs sm:text-sm text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 transition-colors"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button 
+              onClick={onClose}
+              className="px-3 py-2 rounded-xl font-bold text-xs sm:text-sm text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={handleReloadReceipt}
+              className="px-2.5 sm:px-3 py-2 rounded-xl font-bold text-xs text-gray-700 bg-white border border-gray-200 hover:bg-gray-100 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Reload preview and reset settings to defaults"
+            >
+              <RotateCcw size={13} className={isReloading ? "animate-spin text-red-600" : ""} />
+              <span className="hidden xs:inline">{isReloading ? 'Reloading...' : 'Reload'}</span>
+            </button>
+          </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button 

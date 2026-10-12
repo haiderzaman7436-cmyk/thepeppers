@@ -9,7 +9,8 @@ import {
   LogOut,
   MonitorSmartphone,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RotateCw
 } from 'lucide-react';
 import './Layout.css';
 import logo from '../assets/logo.jpg';
@@ -85,8 +86,30 @@ const Layout = () => {
       <main className="main-content">
         {!isPosPage && (
           <header className="topbar">
-            <div className="page-title">
+            <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <h2 className="text-xl font-bold">Admin Portal</h2>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 10px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#4b5563',
+                  backgroundColor: '#f3f4f6',
+                  border: '1px solid #e5e7eb',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                title="Reload page"
+              >
+                <RotateCw size={13} />
+                <span>Reload</span>
+              </button>
             </div>
             <div className="user-profile">
               <div className="text-right">

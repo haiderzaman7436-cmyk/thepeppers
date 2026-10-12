@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw } from 'lucide-react';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
 import { printThermalReceipt } from '../utils/thermalPrinter';
 
@@ -490,7 +490,17 @@ const POS = () => {
         
         {/* Header */}
         <div className="px-6 py-5 flex justify-between items-center border-b border-gray-100">
-          <h2 className="font-bold text-xl text-black">Current Order</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-xl text-black">Current Order</h2>
+            <button 
+              type="button"
+              onClick={() => window.location.reload()}
+              className="text-gray-400 hover:text-gray-800 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              title="Reload POS page"
+            >
+              <RotateCw size={15} />
+            </button>
+          </div>
           <button 
             onClick={() => setCart([])}
             className="text-[var(--accent-primary)] font-bold text-sm flex items-center gap-1.5 hover:bg-red-50 px-2 py-1 rounded-md transition-colors"
