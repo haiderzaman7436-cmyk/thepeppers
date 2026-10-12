@@ -493,37 +493,56 @@ const ThermalReceiptModal = ({
 
             {/* Items Header */}
             <div 
-              className="flex justify-between font-bold py-1 my-1.5 uppercase text-black tracking-wide"
+              className="flex items-center font-bold py-1 my-1.5 uppercase text-black tracking-wide"
               style={{ 
                 fontSize: `calc(${activeSizeConfig.base} - 1px)`,
                 borderTop: '1px dashed #000000',
                 borderBottom: '1px dashed #000000'
               }}
             >
-              <span>ITEM DESCRIPTION</span>
-              <span>AMOUNT</span>
+              <span className="w-8 shrink-0 text-left">QTY</span>
+              <span className="flex-1 px-1 text-left">ITEM DESCRIPTION</span>
+              <span className="w-20 shrink-0 text-right">AMOUNT</span>
             </div>
 
             {/* Items List */}
-            <div className="flex flex-col gap-1.5 my-1.5 text-black">
+            <div className="flex flex-col my-1 text-black">
               {items.map((item, idx) => {
                 const qty = Number(item.quantity) || 1;
                 const price = Number(item.price || item.parsedPrice) || 0;
                 const lineTotal = price * qty;
                 return (
-                  <div key={idx} className="flex flex-col">
+                  <div 
+                    key={idx} 
+                    className="flex items-start py-1 border-b border-dashed border-gray-200 last:border-b-0"
+                  >
                     <div 
-                      className="font-semibold break-words text-black leading-snug"
+                      className="w-8 shrink-0 font-bold text-black text-left pt-0.5"
                       style={{ fontSize: activeSizeConfig.base }}
                     >
-                      {idx + 1}. {item.name}
+                      {qty}x
+                    </div>
+                    <div className="flex-1 px-1 text-left">
+                      <div 
+                        className="font-semibold break-words text-black leading-snug"
+                        style={{ fontSize: activeSizeConfig.base }}
+                      >
+                        {item.name}
+                      </div>
+                      {qty > 1 && (
+                        <div 
+                          className="font-medium text-gray-600 tabular-nums mt-0.5"
+                          style={{ fontSize: `calc(${activeSizeConfig.base} - 1.5px)` }}
+                        >
+                          @ {formatCurrency(price)} each
+                        </div>
+                      )}
                     </div>
                     <div 
-                      className="flex justify-between pl-2 font-medium text-gray-800 tabular-nums mt-0.5"
-                      style={{ fontSize: `calc(${activeSizeConfig.base} - 0.5px)` }}
+                      className="w-20 shrink-0 font-bold text-black text-right tabular-nums pt-0.5"
+                      style={{ fontSize: activeSizeConfig.base }}
                     >
-                      <span className="font-normal">{qty} × {formatCurrency(price)}</span>
-                      <span className="font-bold text-black">{formatCurrency(lineTotal)}</span>
+                      {formatCurrency(lineTotal)}
                     </div>
                   </div>
                 );
@@ -598,9 +617,6 @@ const ThermalReceiptModal = ({
               </p>
               <p className="font-medium text-gray-800 m-0 mt-0.5" style={{ fontSize: activeSizeConfig.sub }}>
                 Please Visit Us Again Soon
-              </p>
-              <p className="font-normal text-gray-600 mt-2 m-0 tracking-wide" style={{ fontSize: `calc(${activeSizeConfig.sub} - 1.5px)` }}>
-                Thermal Slip • {isFixedLength ? '80mm x 210mm' : '80mm Auto-Roll'}
               </p>
             </div>
 

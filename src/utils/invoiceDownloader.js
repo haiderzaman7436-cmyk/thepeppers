@@ -168,18 +168,23 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
   const formattedTotal = formatCurrency(total);
   const barcodeSvg = generateBarcodeSVG(orderNumber);
 
-  const itemsList = items.map((item, idx) => {
+  const itemsList = items.map((item) => {
     const qty = Number(item.quantity) || 1;
     const price = Number(item.price || item.parsedPrice) || 0;
     const lineTotal = price * qty;
     return `
-      <div style="margin-bottom: 5px;">
-        <div style="font-weight: 600; font-size: ${sizeConfig.base}; color: #000000; word-break: break-word; line-height: 1.3;">
-          ${idx + 1}. ${item.name}
+      <div style="display: flex; align-items: flex-start; padding: 3.5px 0; border-bottom: 0.5px dashed #cccccc;">
+        <div style="width: 32px; min-width: 32px; font-weight: 700; font-size: ${sizeConfig.base}; color: #000000; text-align: left; padding-top: 0.5px;">
+          ${qty}x
         </div>
-        <div style="display: flex; justify-content: space-between; padding-left: 6px; font-size: calc(${sizeConfig.base} - 0.5px); color: #222222; margin-top: 1.5px; font-variant-numeric: tabular-nums;">
-          <span style="font-weight: 500;">${qty} × ${formatCurrency(price)}</span>
-          <span style="font-weight: 700; color: #000000;">${formatCurrency(lineTotal)}</span>
+        <div style="flex: 1; padding: 0 4px; text-align: left;">
+          <div style="font-weight: 600; font-size: ${sizeConfig.base}; color: #000000; word-break: break-word; line-height: 1.3;">
+            ${item.name}
+          </div>
+          ${qty > 1 ? `<div style="font-size: calc(${sizeConfig.base} - 1.5px); font-weight: 500; color: #333333; margin-top: 1px;">@ ${formatCurrency(price)} each</div>` : ''}
+        </div>
+        <div style="width: 78px; min-width: 78px; text-align: right; font-weight: 700; font-size: ${sizeConfig.base}; color: #000000; font-variant-numeric: tabular-nums; padding-top: 0.5px;">
+          ${formatCurrency(lineTotal)}
         </div>
       </div>
     `;
@@ -222,13 +227,14 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
       </div>
 
       <!-- Items Header -->
-      <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: calc(${sizeConfig.base} - 1px); padding: 3.5px 0; border-top: 1px dashed #000000; border-bottom: 1px dashed #000000; margin: 6px 0 5px 0; text-transform: uppercase; color: #000000; letter-spacing: 0.5px;">
-        <span>ITEM DESCRIPTION</span>
-        <span>AMOUNT</span>
+      <div style="display: flex; align-items: center; font-weight: 700; font-size: calc(${sizeConfig.base} - 1px); padding: 3.5px 0; border-top: 1px dashed #000000; border-bottom: 1px dashed #000000; margin: 6px 0 3px 0; text-transform: uppercase; color: #000000; letter-spacing: 0.5px;">
+        <span style="width: 32px; text-align: left;">QTY</span>
+        <span style="flex: 1; padding: 0 4px; text-align: left;">ITEM DESCRIPTION</span>
+        <span style="width: 78px; text-align: right;">AMOUNT</span>
       </div>
 
       <!-- Items List -->
-      <div style="margin: 3px 0;">
+      <div style="margin: 2px 0 4px 0;">
         ${itemsList}
       </div>
 
@@ -274,7 +280,6 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
         ` : ''}
         <div style="font-weight: 700; font-size: calc(${sizeConfig.base} - 1px); text-transform: uppercase; letter-spacing: 0.5px; color: #000000;">THANK YOU FOR DINING WITH US!</div>
         <div style="font-size: ${sizeConfig.sub}; margin-top: 2px; font-weight: 500; color: #222222;">PLEASE VISIT US AGAIN SOON</div>
-        <div style="font-size: calc(${sizeConfig.sub} - 1.5px); margin-top: 5px; font-weight: 500; color: #444444; letter-spacing: 0.3px;">Thermal Slip • ${isFixedLength ? '80mm x 210mm' : '80mm Auto-Roll'}</div>
       </div>
     </div>
   `;

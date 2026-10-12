@@ -201,20 +201,19 @@ export const generateReceiptHTML = (data, options = {}) => {
   const formattedTotal = formatCurrency(total);
   const barcodeSvg = generateBarcodeSVG(orderNumber);
 
-  const itemsHtml = items.map((item, index) => {
+  const itemsHtml = items.map((item) => {
     const qty = Number(item.quantity) || 1;
     const price = Number(item.price || item.parsedPrice) || 0;
     const lineTotal = price * qty;
 
     return `
-      <div class="item-entry">
-        <div class="item-name">
-          ${index + 1}. ${item.name}
+      <div class="item-row">
+        <div class="item-qty">${qty}x</div>
+        <div class="item-desc">
+          <div class="item-name">${item.name}</div>
+          ${qty > 1 ? `<div class="item-rate">@ ${formatCurrency(price)} each</div>` : ''}
         </div>
-        <div class="item-details tabular-nums">
-          <span class="item-qty-rate">${qty} × ${formatCurrency(price)}</span>
-          <span class="item-total">${formatCurrency(lineTotal)}</span>
-        </div>
+        <div class="item-amount tabular-nums">${formatCurrency(lineTotal)}</div>
       </div>
     `;
   }).join('');
@@ -372,20 +371,58 @@ export const generateReceiptHTML = (data, options = {}) => {
 
         .items-header {
           display: flex;
-          justify-content: space-between;
+          align-items: center;
           font-weight: 700;
           font-size: calc(${sizeConfig.base} - 1px);
           letter-spacing: 0.5px;
           padding: 3.5px 0;
           border-top: 1px dashed #000000;
           border-bottom: 1px dashed #000000;
-          margin: 6px 0 5px 0;
+          margin: 6px 0 3px 0;
           text-transform: uppercase;
           color: #000000;
         }
+        .items-header-qty {
+          width: 32px;
+          min-width: 32px;
+          text-align: left;
+        }
+        .items-header-desc {
+          flex: 1;
+          padding: 0 4px;
+          text-align: left;
+        }
+        .items-header-amt {
+          width: 78px;
+          min-width: 78px;
+          text-align: right;
+        }
 
-        .item-entry {
-          margin-bottom: 6px;
+        .items-list {
+          margin: 2px 0 4px 0;
+        }
+        .item-row {
+          display: flex;
+          align-items: flex-start;
+          padding: 3.5px 0;
+          border-bottom: 0.5px dashed #cccccc;
+        }
+        .item-row:last-child {
+          border-bottom: none;
+        }
+        .item-qty {
+          width: 32px;
+          min-width: 32px;
+          font-weight: 700;
+          font-size: ${sizeConfig.base};
+          color: #000000;
+          text-align: left;
+          padding-top: 0.5px;
+        }
+        .item-desc {
+          flex: 1;
+          padding: 0 4px;
+          text-align: left;
         }
         .item-name {
           font-size: ${sizeConfig.base};
@@ -394,21 +431,20 @@ export const generateReceiptHTML = (data, options = {}) => {
           color: #000000;
           word-break: break-word;
         }
-        .item-details {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          padding-left: 6px;
-          font-size: calc(${sizeConfig.base} - 0.5px);
-          color: #222222;
-          margin-top: 1.5px;
-        }
-        .item-qty-rate {
+        .item-rate {
+          font-size: calc(${sizeConfig.base} - 1.5px);
           font-weight: 500;
+          color: #333333;
+          margin-top: 1px;
         }
-        .item-total {
+        .item-amount {
+          width: 78px;
+          min-width: 78px;
+          text-align: right;
+          font-size: ${sizeConfig.base};
           font-weight: 700;
           color: #000000;
+          padding-top: 0.5px;
         }
 
         .summary-row {
@@ -506,12 +542,13 @@ export const generateReceiptHTML = (data, options = {}) => {
 
         <!-- Items Header -->
         <div class="items-header">
-          <span>ITEM DESCRIPTION</span>
-          <span>AMOUNT</span>
+          <span class="items-header-qty">QTY</span>
+          <span class="items-header-desc">ITEM DESCRIPTION</span>
+          <span class="items-header-amt">AMOUNT</span>
         </div>
 
         <!-- Items List -->
-        <div style="margin: 3px 0;">
+        <div class="items-list">
           ${itemsHtml}
         </div>
 
@@ -551,7 +588,6 @@ export const generateReceiptHTML = (data, options = {}) => {
           ` : ''}
           <div class="footer-msg">THANK YOU FOR DINING WITH US!</div>
           <div class="footer-sub">Please Visit Us Again Soon</div>
-          <div class="footer-spec">Thermal Slip • ${isFixedLength ? '80mm x 210mm' : '80mm Auto-Roll'}</div>
         </div>
       </div>
     </body>
