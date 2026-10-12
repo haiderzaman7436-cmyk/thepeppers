@@ -1,17 +1,85 @@
 import { LOGO_BASE64 } from '../assets/logoBase64';
+export const RECEIPT_FONTS = {
+  sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  mono: "'JetBrains Mono', 'Consolas', 'Courier New', 'Courier', monospace"
+};
+
+export const RECEIPT_SIZES = {
+  compact: {
+    base: '11px',
+    brand: '18px',
+    total: '15px',
+    heading: '12px',
+    sub: '10px',
+    padding: '2mm 1.5mm 3mm 1.5mm'
+  },
+  standard: {
+    base: '12px',
+    brand: '19px',
+    total: '16.5px',
+    heading: '13px',
+    sub: '10.5px',
+    padding: '2mm 1.5mm 3mm 1.5mm'
+  },
+  large: {
+    base: '13px',
+    brand: '21px',
+    total: '18px',
+    heading: '14px',
+    sub: '11px',
+    padding: '2.5mm 1.5mm 3.5mm 1.5mm'
+  }
+};
 
 /**
- * 80mm x 210mm Professional Thermal Receipt & NokoPrint Utility
- * Optimized for 80mm (3-Inch) Thermal Printers, Tablets & NokoPrint App
+ * Robust currency formatter ensuring all amounts consistently display with thousand separators (e.g. Rs 1,499)
  */
-
 export const formatCurrency = (amount) => {
+  if (amount === null || amount === undefined) return 'Rs 0';
   if (typeof amount === 'string') {
-    const num = parseInt(amount.replace(/\D/g, ''), 10);
+    const cleanStr = amount.replace(/,/g, '');
+    const num = parseInt(cleanStr.replace(/[^\d.-]/g, ''), 10);
     return isNaN(num) ? amount : `Rs ${num.toLocaleString()}`;
   }
-  const num = Number(amount) || 0;
+  const num = Math.round(Number(amount)) || 0;
   return `Rs ${num.toLocaleString()}`;
+};
+
+/**
+ * Generates clean, crisp vector SVG barcode for thermal printing
+ * Rendered with crispEdges to prevent blurry anti-aliasing on 203 DPI thermal print heads
+ */
+export const generateBarcodeSVG = (orderNumber) => {
+  const numStr = String(orderNumber || '1').replace(/\D/g, '');
+  const padded = numStr.padStart(5, '0');
+  const codeStr = `TP-${padded}`;
+
+  let x = 6;
+  const bars = [];
+
+  // Start guards
+  bars.push(`<rect x="${x}" y="0" width="2" height="28" fill="#000000"/>`); x += 3.5;
+  bars.push(`<rect x="${x}" y="0" width="1.5" height="28" fill="#000000"/>`); x += 3.5;
+
+  for (let i = 0; i < codeStr.length; i++) {
+    const charCode = codeStr.charCodeAt(i);
+    const b1 = (charCode % 3 === 0) ? 2.5 : 1.2;
+    const s1 = 1.6;
+    const b2 = (charCode % 2 === 0) ? 2.0 : 1.2;
+    const s2 = 1.8;
+    const b3 = (charCode % 4 === 0) ? 3.0 : 1.4;
+    const s3 = 2.0;
+
+    bars.push(`<rect x="${x.toFixed(1)}" y="0" width="${b1.toFixed(1)}" height="28" fill="#000000"/>`); x += b1 + s1;
+    bars.push(`<rect x="${x.toFixed(1)}" y="0" width="${b2.toFixed(1)}" height="28" fill="#000000"/>`); x += b2 + s2;
+    bars.push(`<rect x="${x.toFixed(1)}" y="0" width="${b3.toFixed(1)}" height="28" fill="#000000"/>`); x += b3 + s3;
+  }
+
+  // End guards
+  bars.push(`<rect x="${x.toFixed(1)}" y="0" width="2" height="28" fill="#000000"/>`); x += 3.5;
+  bars.push(`<rect x="${x.toFixed(1)}" y="0" width="1.5" height="28" fill="#000000"/>`); x += 8;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(x)} 28" width="140" height="24" style="display:block;margin:0 auto;" shape-rendering="crispEdges">${bars.join('')}</svg>`;
 };
 
 /**
@@ -37,7 +105,7 @@ export const generateReceiptText = (data) => {
   } = data;
 
   const totalQty = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
-  const formattedTotal = typeof total === 'string' && total.startsWith('Rs') ? total : formatCurrency(total);
+  const formattedTotal = formatCurrency(total);
 
   let text = '';
   text += '========================================\n';
@@ -71,7 +139,7 @@ export const generateReceiptText = (data) => {
   text += '========================================\n';
   text += `TOTAL DUE:`.padEnd(26) + `${formattedTotal}\n`;
   text += '========================================\n';
-  text += `Payment: PAID (${paymentMethod.toUpperCase()})\n`;
+  text += `Payment Status: PAID (${paymentMethod.toUpperCase()})\n`;
   text += '----------------------------------------\n';
   text += '       THANK YOU FOR DINING WITH US!    \n';
   text += '          PLEASE VISIT US AGAIN!        \n';
@@ -82,10 +150,10 @@ export const generateReceiptText = (data) => {
 };
 
 /**
- * Generates high-contrast 80mm x 210mm HTML for thermal printing
- * Everything is styled BOLD and deep black for maximum thermal clarity
+ * Generates high-legibility 80mm x 210mm HTML for thermal printing
+ * Uses calibrated, professional typography designed to eliminate ink bleeding and comic-like faux-bolding
  */
-export const generateReceiptHTML = (data) => {
+export const generateReceiptHTML = (data, options = {}) => {
   const {
     orderNumber = 'N/A',
     date = new Date().toLocaleDateString(),
@@ -99,13 +167,31 @@ export const generateReceiptHTML = (data) => {
       name: "THE PEPPERS",
       tagline: "Flavor & Spice",
       category: "Fast Food • Pizza • Burgers • Platters",
-      phone: "0300-1234567",
-      address: "Main Branch, Food Street"
+      phone: "0325 7233444",
+      address: "Gondlanwala Road, Rajkot Main Bazar Near Babu Bakers Gujranwala"
     }
   } = data;
 
+  // Retrieve user font and size preferences
+  let fontPref = options.fontStyle;
+  let sizePref = options.fontSize;
+
+  if (!fontPref && typeof window !== 'undefined' && window.localStorage) {
+    fontPref = window.localStorage.getItem('thepeppers_thermal_font_style');
+  }
+  if (!sizePref && typeof window !== 'undefined' && window.localStorage) {
+    sizePref = window.localStorage.getItem('thepeppers_thermal_font_size');
+  }
+
+  const activeFontKey = fontPref === 'mono' ? 'mono' : 'sans';
+  const activeSizeKey = ['compact', 'standard', 'large'].includes(sizePref) ? sizePref : 'standard';
+
+  const fontFamily = RECEIPT_FONTS[activeFontKey];
+  const sizeConfig = RECEIPT_SIZES[activeSizeKey];
+
   const totalQty = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
-  const formattedTotal = typeof total === 'string' && total.startsWith('Rs') ? total : formatCurrency(total);
+  const formattedTotal = formatCurrency(total);
+  const barcodeSvg = generateBarcodeSVG(orderNumber);
 
   const itemsHtml = items.map((item, index) => {
     const qty = Number(item.quantity) || 1;
@@ -113,13 +199,13 @@ export const generateReceiptHTML = (data) => {
     const lineTotal = price * qty;
 
     return `
-      <div style="margin-bottom: 6px; font-size: 13px; line-height: 1.3;">
-        <div style="font-weight: 900; color: #000000; word-break: break-word;">
+      <div class="item-entry">
+        <div class="item-name">
           ${index + 1}. ${item.name}
         </div>
-        <div style="display: flex; justify-content: space-between; padding-left: 8px; font-size: 12px; font-weight: 800; color: #000000;">
-          <span>${qty} × ${formatCurrency(price)}</span>
-          <span style="font-weight: 900;">${formatCurrency(lineTotal)}</span>
+        <div class="item-details tabular-nums">
+          <span class="item-qty-rate">${qty} × ${formatCurrency(price)}</span>
+          <span class="item-total">${formatCurrency(lineTotal)}</span>
         </div>
       </div>
     `;
@@ -132,206 +218,329 @@ export const generateReceiptHTML = (data) => {
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Receipt #${orderNumber} - The Peppers</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
       <style>
         @page {
-          size: 80mm 210mm;
-          margin: 0;
+          size: 80mm auto;
+          margin: 0mm;
         }
         * {
           box-sizing: border-box;
           margin: 0;
           padding: 0;
-          font-weight: 800 !important;
-          color: #000000 !important;
+          -webkit-font-smoothing: antialiased;
         }
-        html, body {
-          width: 80mm;
-          max-width: 80mm;
-          min-height: 210mm;
-          margin: 0 auto;
-          padding: 6mm 4mm 8mm 4mm;
+        html {
+          margin: 0;
+          padding: 0;
           background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, monospace;
-          font-size: 12px;
+        }
+        body {
+          width: 72mm;
+          max-width: 72mm;
+          height: auto;
+          min-height: auto;
+          margin: 0 auto;
+          padding: ${sizeConfig.padding};
+          background: #ffffff;
+          color: #000000;
+          font-family: ${fontFamily};
+          font-size: ${sizeConfig.base};
           line-height: 1.35;
+          box-sizing: border-box;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
+
+        .receipt-container {
+          width: 100%;
+          margin: 0 auto;
+          box-sizing: border-box;
+          color: #000000;
+        }
+
         .text-center { text-align: center; }
         .text-right { text-align: right; }
-        
+        .tabular-nums {
+          font-variant-numeric: tabular-nums;
+          font-feature-settings: "tnum";
+        }
+
         .logo-img {
-          width: 60px;
-          height: 60px;
+          width: 52px;
+          height: 52px;
           object-fit: contain;
-          margin: 0 auto 6px auto;
+          margin: 0 auto 5px auto;
           display: block;
           border-radius: 50%;
-          border: 2px solid #000000;
-        }
-        
-        .divider-dashed {
-          border-top: 1.5px dashed #000000;
-          margin: 6px 0;
-        }
-        .divider-solid {
-          border-top: 2px solid #000000;
-          margin: 6px 0;
-        }
-        .divider-double {
-          border-top: 3px double #000000;
-          margin: 6px 0;
+          border: 1.5px solid #000000;
         }
 
         .brand-name {
-          font-size: 21px;
-          font-weight: 900 !important;
-          letter-spacing: 0.5px;
-          line-height: 1.1;
+          font-size: ${sizeConfig.brand};
+          font-weight: 800;
+          letter-spacing: 0.8px;
+          line-height: 1.15;
+          text-transform: uppercase;
+          color: #000000;
           margin-bottom: 2px;
         }
         .tagline {
-          font-size: 11px;
+          font-size: ${sizeConfig.sub};
+          font-weight: 500;
           font-style: italic;
+          letter-spacing: 0.3px;
+          color: #111111;
           margin-bottom: 2px;
         }
         .store-sub {
-          font-size: 10.5px;
+          font-size: ${sizeConfig.sub};
+          font-weight: 500;
           line-height: 1.3;
+          color: #222222;
+        }
+        .store-phone {
+          font-size: calc(${sizeConfig.sub} + 1px);
+          font-weight: 700;
+          line-height: 1.3;
+          color: #000000;
         }
 
         .badge-type {
           display: inline-block;
-          font-size: 13px;
-          font-weight: 900 !important;
-          letter-spacing: 2px;
-          padding: 3px 10px;
-          border: 2px solid #000000;
-          margin: 6px auto;
+          font-size: calc(${sizeConfig.base} - 0.5px);
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          padding: 2.5px 12px;
+          border: 1.5px solid #000000;
+          border-radius: 2px;
+          margin: 6px auto 3px auto;
           text-transform: uppercase;
+          color: #000000;
+        }
+
+        .divider-dashed {
+          border-top: 1px dashed #000000;
+          margin: 6px 0;
+        }
+        .divider-solid {
+          border-top: 1.5px solid #000000;
+          margin: 6px 0;
+        }
+        .divider-double {
+          border-top: 1.5px solid #000000;
+          border-bottom: 1.5px solid #000000;
+          height: 3px;
+          margin: 6px 0;
+        }
+
+        .order-title-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          font-size: ${sizeConfig.heading};
+          font-weight: 700;
+          letter-spacing: 0.3px;
+          margin-bottom: 3px;
+          padding-bottom: 3px;
+          border-bottom: 1px dashed #000000;
+          color: #000000;
         }
 
         .meta-row {
           display: flex;
           justify-content: space-between;
-          font-size: 12px;
+          font-size: calc(${sizeConfig.base} - 0.5px);
+          font-weight: 500;
+          color: #111111;
           margin-bottom: 2px;
+        }
+        .meta-bold {
+          font-weight: 600;
+          color: #000000;
         }
 
         .items-header {
           display: flex;
           justify-content: space-between;
-          font-weight: 900 !important;
-          font-size: 12px;
-          padding: 4px 0;
-          border-top: 1.5px dashed #000000;
-          border-bottom: 1.5px dashed #000000;
-          margin: 6px 0;
+          font-weight: 700;
+          font-size: calc(${sizeConfig.base} - 1px);
+          letter-spacing: 0.5px;
+          padding: 3.5px 0;
+          border-top: 1px dashed #000000;
+          border-bottom: 1px dashed #000000;
+          margin: 6px 0 5px 0;
           text-transform: uppercase;
+          color: #000000;
+        }
+
+        .item-entry {
+          margin-bottom: 6px;
+        }
+        .item-name {
+          font-size: ${sizeConfig.base};
+          font-weight: 600;
+          line-height: 1.3;
+          color: #000000;
+          word-break: break-word;
+        }
+        .item-details {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          padding-left: 6px;
+          font-size: calc(${sizeConfig.base} - 0.5px);
+          color: #222222;
+          margin-top: 1.5px;
+        }
+        .item-qty-rate {
+          font-weight: 500;
+        }
+        .item-total {
+          font-weight: 700;
+          color: #000000;
         }
 
         .summary-row {
           display: flex;
           justify-content: space-between;
-          font-size: 12px;
-          margin-bottom: 3px;
+          align-items: baseline;
+          font-size: calc(${sizeConfig.base} - 0.5px);
+          font-weight: 500;
+          margin-bottom: 2.5px;
+          color: #111111;
+        }
+        .summary-val {
+          font-weight: 600;
+          color: #000000;
         }
 
-        .grand-total {
+        .grand-total-row {
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          font-size: 18px;
-          font-weight: 900 !important;
-          padding: 4px 0;
+          align-items: baseline;
+          font-size: ${sizeConfig.total};
+          font-weight: 800;
+          letter-spacing: 0.5px;
+          padding: 2px 0;
+          color: #000000;
         }
 
-        .barcode {
-          font-family: monospace;
-          font-size: 18px;
-          letter-spacing: 4px;
-          font-weight: 900 !important;
+        .barcode-container {
           text-align: center;
           margin-top: 6px;
+        }
+        .order-code {
+          font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+          font-size: 11px;
+          letter-spacing: 2px;
+          font-weight: 600;
+          margin: 3px 0 6px 0;
+          color: #000000;
+        }
+
+        .footer-msg {
+          font-size: calc(${sizeConfig.base} - 1px);
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          color: #000000;
+          margin-top: 4px;
+        }
+        .footer-sub {
+          font-size: ${sizeConfig.sub};
+          font-weight: 500;
+          color: #222222;
+          margin-top: 2px;
+        }
+        .footer-spec {
+          font-size: calc(${sizeConfig.sub} - 1.5px);
+          font-weight: 500;
+          color: #444444;
+          margin-top: 5px;
+          letter-spacing: 0.3px;
         }
       </style>
     </head>
     <body>
-      <div class="text-center">
-        <img src="${LOGO_BASE64}" alt="The Peppers" class="logo-img" />
-        <div class="brand-name">${storeInfo.name}</div>
-        <div class="tagline">~ ${storeInfo.tagline} ~</div>
-        <div class="store-sub">${storeInfo.category}</div>
-        <div class="store-sub">Tel: ${storeInfo.phone}</div>
-        <div class="store-sub">${storeInfo.address}</div>
-        
-        <div class="badge-type">*** ${orderType.toUpperCase()} ***</div>
-      </div>
+      <div class="receipt-container">
+        <!-- Store Header -->
+        <div class="text-center">
+          <img src="${LOGO_BASE64}" alt="The Peppers" class="logo-img" />
+          <div class="brand-name">${storeInfo.name}</div>
+          <div class="tagline">~ ${storeInfo.tagline} ~</div>
+          <div class="store-sub">${storeInfo.category}</div>
+          <div class="store-phone">Tel: ${storeInfo.phone}</div>
+          <div class="store-sub">${storeInfo.address}</div>
+          
+          <div class="badge-type">*** ${orderType.toUpperCase()} ***</div>
+        </div>
 
-      <div class="divider-dashed"></div>
+        <div class="divider-dashed"></div>
 
-      <div class="meta-row" style="font-size: 14px; margin-bottom: 4px;">
-        <span style="font-weight: 900;">ORDER #: ${orderNumber}</span>
-        <span style="font-weight: 900;">${paymentMethod.toUpperCase()}</span>
-      </div>
-      <div class="meta-row">
-        <span>Date: ${date}</span>
-        <span>Time: ${time}</span>
-      </div>
-      <div class="meta-row">
-        <span>Customer: ${customer}</span>
-        <span>Counter: POS-01</span>
-      </div>
+        <!-- Order Metadata -->
+        <div class="order-title-row">
+          <span>ORDER #: ${orderNumber}</span>
+          <span class="tabular-nums">${paymentMethod.toUpperCase()}</span>
+        </div>
+        <div class="meta-row">
+          <span>Date: ${date}</span>
+          <span>Time: ${time}</span>
+        </div>
+        <div class="meta-row">
+          <span>Customer: <strong class="meta-bold">${customer}</strong></span>
+          <span>Counter: POS-01</span>
+        </div>
 
-      <div class="items-header">
-        <span>ITEM DESCRIPTION</span>
-        <span>AMOUNT</span>
-      </div>
+        <!-- Items Header -->
+        <div class="items-header">
+          <span>ITEM DESCRIPTION</span>
+          <span>AMOUNT</span>
+        </div>
 
-      <div style="margin: 4px 0;">
-        ${itemsHtml}
-      </div>
+        <!-- Items List -->
+        <div style="margin: 3px 0;">
+          ${itemsHtml}
+        </div>
 
-      <div class="divider-dashed"></div>
+        <div class="divider-dashed"></div>
 
-      <div class="summary-row">
-        <span>Total Items / Qty:</span>
-        <span>${totalQty}</span>
-      </div>
-      <div class="summary-row">
-        <span>Subtotal:</span>
-        <span>${formattedTotal}</span>
-      </div>
+        <!-- Summary & Totals -->
+        <div class="summary-row">
+          <span>Total Items / Qty:</span>
+          <span class="summary-val tabular-nums">${totalQty}</span>
+        </div>
+        <div class="summary-row">
+          <span>Subtotal:</span>
+          <span class="summary-val tabular-nums">${formattedTotal}</span>
+        </div>
 
-      <div class="divider-double"></div>
+        <div class="divider-double"></div>
 
-      <div class="grand-total">
-        <span>TOTAL DUE:</span>
-        <span style="font-size: 20px;">${formattedTotal}</span>
-      </div>
+        <div class="grand-total-row tabular-nums">
+          <span>TOTAL DUE:</span>
+          <span>${formattedTotal}</span>
+        </div>
 
-      <div class="divider-double"></div>
+        <div class="divider-double"></div>
 
-      <div class="summary-row">
-        <span>Payment Status:</span>
-        <span>PAID (${paymentMethod.toUpperCase()})</span>
-      </div>
+        <div class="summary-row">
+          <span>Payment Status:</span>
+          <span class="summary-val">PAID (${paymentMethod.toUpperCase()})</span>
+        </div>
 
-      <div class="divider-dashed"></div>
+        <div class="divider-dashed"></div>
 
-      <div class="barcode">||| | |||| | ||| |||| | ||</div>
-      <div class="text-center" style="font-size: 11px; letter-spacing: 2px; margin-bottom: 6px;">
-        *TP-${String(orderNumber).padStart(5, '0')}*
-      </div>
-
-      <div class="text-center" style="font-size: 12px; margin-top: 6px; text-transform: uppercase;">
-        Thank You For Dining With Us!
-      </div>
-      <div class="text-center" style="font-size: 11px; margin-top: 2px;">
-        Please Visit Us Again Soon
-      </div>
-      <div class="text-center" style="font-size: 10px; margin-top: 6px;">
-        Thermal Slip • 80mm x 210mm
+        <!-- Barcode & Greetings -->
+        <div class="barcode-container">
+          ${barcodeSvg}
+          <div class="order-code">*TP-${String(orderNumber).padStart(5, '0')}*</div>
+          <div class="footer-msg">THANK YOU FOR DINING WITH US!</div>
+          <div class="footer-sub">Please Visit Us Again Soon</div>
+          <div class="footer-spec">Thermal Slip • 80mm Thermal Roll</div>
+        </div>
       </div>
     </body>
     </html>
@@ -342,24 +551,23 @@ export const generateReceiptHTML = (data) => {
  * Triggers printing strictly formatted as 80mm x 210mm
  * Optimized for Desktop browsers, Tablets & NokoPrint
  */
-export const printThermalReceipt = (data) => {
+export const printThermalReceipt = (data, options = {}) => {
   return new Promise((resolve) => {
     try {
-      const htmlContent = generateReceiptHTML(data);
-      const isTabletOrMobile = /Android|iPad|iPhone|iPod|Tablet/i.test(navigator.userAgent) || 
-                               (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+      const htmlContent = generateReceiptHTML(data, options);
+      // Strictly detect mobile devices (Android / iOS phones/tablets) - never falsely match Windows touchscreens
+      const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      // On Tablets & Mobile: Use hidden print container and window.print()
-      if (isTabletOrMobile) {
+      // On Tablets & Mobile (Android / NokoPrint): Use hidden print container and window.print()
+      if (isMobileDevice) {
         let printContainer = document.getElementById('nokoprint-print-container');
         if (!printContainer) {
           printContainer = document.createElement('div');
           printContainer.id = 'nokoprint-print-container';
-          // Ensure container is strictly hidden on normal screen view
           printContainer.style.display = 'none';
           document.body.appendChild(printContainer);
         }
-        
+
         printContainer.innerHTML = htmlContent;
 
         window.focus();
@@ -368,14 +576,14 @@ export const printThermalReceipt = (data) => {
             window.print();
             resolve(true);
           } catch (e) {
-            console.error("Tablet window.print error:", e);
+            console.error("Mobile window.print error:", e);
             resolve(false);
           }
-        }, 100);
+        }, 120);
         return;
       }
 
-      // On Desktop: Use an offscreen hidden iframe to avoid interfering with current UI
+      // On Desktop (Windows / Mac): Use isolated hidden iframe for pure 80mm roll print without browser headers/footers
       const existingFrame = document.getElementById('thermal-print-frame');
       if (existingFrame && existingFrame.parentNode) {
         existingFrame.parentNode.removeChild(existingFrame);
@@ -386,8 +594,8 @@ export const printThermalReceipt = (data) => {
       printFrame.style.position = 'fixed';
       printFrame.style.right = '0';
       printFrame.style.bottom = '0';
-      printFrame.style.width = '0';
-      printFrame.style.height = '0';
+      printFrame.style.width = '72mm';
+      printFrame.style.height = '100px';
       printFrame.style.border = '0';
       printFrame.style.zIndex = '-9999';
       printFrame.style.visibility = 'hidden';

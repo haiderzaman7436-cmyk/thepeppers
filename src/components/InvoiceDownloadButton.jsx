@@ -9,7 +9,8 @@ const InvoiceDownloadButton = ({
   invoice,
   variant = 'button', // 'button' | 'compact'
   className = '',
-  label = 'Download Slip'
+  label = 'Download Slip',
+  options = {}
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loadingType, setLoadingType] = useState(null); // 'pdf' | 'image' | null
@@ -36,9 +37,9 @@ const InvoiceDownloadButton = ({
       setIsOpen(false);
 
       if (type === 'pdf') {
-        await downloadThermalReceiptPDF(invoice);
+        await downloadThermalReceiptPDF(invoice, options);
       } else if (type === 'image') {
-        await downloadInvoiceImage(invoice);
+        await downloadInvoiceImage(invoice, options);
       }
 
       setSuccessType(type);

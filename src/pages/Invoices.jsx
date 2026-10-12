@@ -157,7 +157,7 @@ const Invoices = () => {
                         className="btn btn-secondary flex items-center gap-2 shadow-sm text-xs font-bold hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]" 
                         style={{ padding: '0.6rem 1rem' }}
                       >
-                        <Printer size={15} /> Print Slip (80×210)
+                        <Printer size={15} /> Print Thermal Slip
                       </button>
                     </div>
                   </div>
