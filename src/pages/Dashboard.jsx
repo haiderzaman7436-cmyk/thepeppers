@@ -157,25 +157,25 @@ const Dashboard = () => {
   return (
     <div className="animate-fade-in pb-10">
       {/* Day Controls */}
-      <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-4">
-          <button onClick={handlePreviousDay} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft size={24} /></button>
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-6 bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-gray-100">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <button onClick={handlePreviousDay} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft size={22} /></button>
           <div className="flex flex-col items-center">
-            <span className="text-sm font-bold text-gray-400">Viewing Records For</span>
-            <span className="text-xl font-black text-[var(--accent-primary)] flex items-center gap-2">
-              <Calendar size={20} /> {selectedDate}
+            <span className="text-xs sm:text-sm font-bold text-gray-400">Viewing Records For</span>
+            <span className="text-lg sm:text-xl font-black text-[var(--accent-primary)] flex items-center gap-2">
+              <Calendar size={18} /> {selectedDate}
             </span>
           </div>
-          <button onClick={handleNextDay} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={24} /></button>
+          <button onClick={handleNextDay} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={22} /></button>
         </div>
         
-        <button onClick={handleStartNewDay} className="btn btn-primary shadow-md shadow-red-500/20">
+        <button onClick={handleStartNewDay} className="btn btn-primary shadow-md shadow-red-500/20 text-xs sm:text-sm py-2 sm:py-2.5">
           Start New Day (Today)
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <StatCard 
           title="Daily Revenue" 
           value={`Rs ${totalRevenue.toLocaleString()}`} 

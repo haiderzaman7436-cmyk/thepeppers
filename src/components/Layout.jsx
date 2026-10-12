@@ -129,7 +129,15 @@ const Layout = () => {
           </header>
         )}
 
-        <div className="content-area animate-fade-in" style={{ padding: isPosPage ? '1rem' : '2rem', display: isPosPage ? 'flex' : 'block' }}>
+        <div 
+          className="content-area animate-fade-in" 
+          style={{ 
+            padding: isPosPage ? '0.5rem' : undefined, 
+            display: isPosPage ? 'flex' : 'block',
+            height: '100%',
+            overflow: isPosPage ? 'hidden' : 'auto'
+          }}
+        >
           <Outlet />
         </div>
       </main>

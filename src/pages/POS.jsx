@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, Eye } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, Eye, ChevronRight } from 'lucide-react';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
 import { printThermalReceipt } from '../utils/thermalPrinter';
 
@@ -19,6 +19,7 @@ const POS = () => {
   const [orderSuccessMessage, setOrderSuccessMessage] = useState(null);
   const [selectedSizes, setSelectedSizes] = useState({}); // Keeps track of dropdown selections
   const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
+  const [mobileTab, setMobileTab] = useState('menu'); // 'menu' | 'cart' for iPad Portrait / small screens
   
   // Two-tier navigation state
   const [mainCategory, setMainCategory] = useState('All');
@@ -337,21 +338,49 @@ const POS = () => {
   };
 
   return (
-    <div className="flex flex-row h-full gap-5 animate-fade-in w-full pb-4 pr-4 bg-white pl-4">
+    <div className="flex flex-col lg:flex-row h-full gap-3 lg:gap-4 animate-fade-in w-full pb-2 sm:pb-3 bg-white px-2 sm:px-3 relative overflow-hidden">
       
+      {/* Mobile / iPad Portrait View Switcher Tabs (< 1024px) */}
+      <div className="flex lg:hidden items-center justify-between bg-gray-100 p-1 rounded-xl mb-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileTab('menu')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+            mobileTab === 'menu'
+              ? 'bg-white text-black shadow-xs'
+              : 'text-gray-600 hover:text-black'
+          }`}
+        >
+          🍽️ Menu Items ({filteredItems.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('cart')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === 'cart'
+              ? 'bg-[var(--accent-primary)] text-white shadow-xs'
+              : 'text-gray-600 hover:text-black'
+          }`}
+        >
+          <ShoppingCart size={14} />
+          <span>Order ({cart.reduce((s, i) => s + i.quantity, 0)})</span>
+          {cart.length > 0 && <span className="font-extrabold">• Rs {calculateTotal()}</span>}
+        </button>
+      </div>
+
       {/* Items Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white pt-1">
+      <div className={`flex-1 flex-col h-full overflow-hidden bg-white pt-1 min-w-0 ${mobileTab === 'cart' ? 'hidden lg:flex' : 'flex'}`}>
         
-        {/* Main Categories Navbar (Wraps to multiple lines) */}
-        <div className="flex flex-wrap items-center gap-3 mb-3 pb-2 pt-1 px-1">
+        {/* Main Categories Navbar (Scrollable single line) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar mb-2 pb-1.5 pt-0.5 px-0.5 shrink-0">
           {mainCategories.map(cat => (
             <button
               key={cat}
               onClick={() => handleMainCategoryClick(cat)}
-              className={`flex-shrink-0 flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-bold text-sm transition-all border ${
+              className={`flex-shrink-0 flex items-center gap-1.5 sm:gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all border ${
                 mainCategory === cat 
                   ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-md shadow-red-500/20' 
-                  : 'bg-white text-black border-gray-100 hover:border-red-200 hover:text-[var(--accent-primary)] shadow-sm'
+                  : 'bg-white text-black border-gray-100 hover:border-red-200 hover:text-[var(--accent-primary)] shadow-2xs'
               }`}
             >
               <span style={{ opacity: mainCategory === cat ? 1 : 0.6 }}>
@@ -364,10 +393,10 @@ const POS = () => {
 
         {/* Top Horizontal Sub Categories */}
         {mainCategory !== 'All' && categoryHierarchy[mainCategory] && (
-          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar mb-4 pb-2 px-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar mb-2.5 pb-1 px-0.5 shrink-0">
             <button
               onClick={() => setSubCategory('All')}
-              className={`flex-shrink-0 px-6 py-2.5 rounded-full font-bold text-sm transition-all border ${
+              className={`flex-shrink-0 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm whitespace-nowrap transition-all border ${
                 subCategory === 'All'
                   ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-md shadow-red-500/20'
                   : 'bg-white text-black border-gray-200 hover:border-red-300 hover:text-[var(--accent-primary)]'
@@ -379,7 +408,7 @@ const POS = () => {
               <button
                 key={sub}
                 onClick={() => setSubCategory(sub)}
-                className={`flex-shrink-0 px-6 py-2.5 rounded-full font-bold text-sm transition-all border ${
+                className={`flex-shrink-0 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm whitespace-nowrap transition-all border ${
                   subCategory === sub
                     ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-md shadow-red-500/20'
                     : 'bg-white text-black border-gray-200 hover:border-red-300 hover:text-[var(--accent-primary)]'
@@ -392,11 +421,11 @@ const POS = () => {
         )}
 
         {/* Items Grid */}
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-2">
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-24 lg:pb-4">
           {loading ? (
              <div className="flex justify-center items-center h-full text-lg font-bold text-black opacity-50">Loading Menu...</div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5">
               {filteredItems.map(item => {
                 const isPizza = item.posCategory && item.posCategory.toLowerCase().includes('pizza') && !item.posCategory.toLowerCase().includes('deal');
                 const pizzaSizes = isPizza ? getPizzaSizes(item) : [];
@@ -509,13 +538,43 @@ const POS = () => {
         </div>
       </div>
 
+      {/* Floating Bottom Cart Bar on iPad Portrait & Mobile (< 1024px) */}
+      {mobileTab === 'menu' && cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-3 left-3 sm:left-20 right-3 z-40 bg-gray-900 text-white rounded-2xl p-2.5 sm:p-3 shadow-2xl flex items-center justify-between animate-fade-in border border-gray-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[var(--accent-primary)] flex items-center justify-center text-white font-bold text-xs">
+              {cart.reduce((s, i) => s + i.quantity, 0)}
+            </div>
+            <div>
+              <div className="text-[11px] text-gray-300 font-medium leading-tight">Current Order</div>
+              <div className="text-sm font-black text-white">Rs {calculateTotal()}</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileTab('cart')}
+            className="px-4 py-2 bg-[var(--accent-primary)] hover:bg-red-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>View Order & Pay</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Column 3: Cart */}
-      <div className="w-[340px] xl:w-[380px] flex flex-col bg-white rounded-3xl shadow-lg border border-gray-200 h-full overflow-hidden">
+      <div className={`w-full lg:w-[320px] xl:w-[360px] flex-col bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 h-full overflow-hidden shrink-0 ${mobileTab === 'menu' ? 'hidden lg:flex' : 'flex'}`}>
         
         {/* Header */}
-        <div className="px-6 py-5 flex justify-between items-center border-b border-gray-100">
+        <div className="px-4 py-3.5 sm:px-6 sm:py-4 flex justify-between items-center border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <h2 className="font-bold text-xl text-black">Current Order</h2>
+            <button 
+              type="button"
+              onClick={() => setMobileTab('menu')}
+              className="lg:hidden text-xs font-bold text-gray-700 hover:text-black flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+            >
+              ← Menu
+            </button>
+            <h2 className="font-bold text-lg sm:text-xl text-black">Current Order</h2>
             <button 
               type="button"
               onClick={() => window.location.reload()}

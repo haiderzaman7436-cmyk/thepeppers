@@ -183,8 +183,8 @@ const Invoices = () => {
                     </div>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-left">
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                    <table className="w-full text-left min-w-[500px]">
                       <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
                           <th className="p-3 text-xs font-bold text-gray-500 uppercase">Item Name</th>
