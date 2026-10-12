@@ -172,9 +172,13 @@ export const generateReceiptHTML = (data, options = {}) => {
     }
   } = data;
 
-  // Retrieve user font and size preferences
+  // Retrieve user customization preferences
   let fontPref = options.fontStyle;
   let sizePref = options.fontSize;
+  let paperLengthPref = options.paperLength;
+  const showLogo = options.showLogo !== undefined ? options.showLogo : true;
+  const showStoreInfo = options.showStoreInfo !== undefined ? options.showStoreInfo : true;
+  const showBarcode = options.showBarcode !== undefined ? options.showBarcode : true;
 
   if (!fontPref && typeof window !== 'undefined' && window.localStorage) {
     fontPref = window.localStorage.getItem('thepeppers_thermal_font_style');
@@ -182,9 +186,13 @@ export const generateReceiptHTML = (data, options = {}) => {
   if (!sizePref && typeof window !== 'undefined' && window.localStorage) {
     sizePref = window.localStorage.getItem('thepeppers_thermal_font_size');
   }
+  if (!paperLengthPref && typeof window !== 'undefined' && window.localStorage) {
+    paperLengthPref = window.localStorage.getItem('thepeppers_thermal_paper_length');
+  }
 
   const activeFontKey = fontPref === 'mono' ? 'mono' : 'sans';
   const activeSizeKey = ['compact', 'standard', 'large'].includes(sizePref) ? sizePref : 'standard';
+  const isFixedLength = paperLengthPref === 'fixed';
 
   const fontFamily = RECEIPT_FONTS[activeFontKey];
   const sizeConfig = RECEIPT_SIZES[activeSizeKey];
@@ -223,7 +231,7 @@ export const generateReceiptHTML = (data, options = {}) => {
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
       <style>
         @page {
-          size: 80mm auto;
+          size: ${isFixedLength ? '80mm 210mm' : '80mm auto'};
           margin: 0mm;
         }
         * {
@@ -241,7 +249,7 @@ export const generateReceiptHTML = (data, options = {}) => {
           width: 72mm;
           max-width: 72mm;
           height: auto;
-          min-height: auto;
+          min-height: ${isFixedLength ? '200mm' : 'auto'};
           margin: 0 auto;
           padding: ${sizeConfig.padding};
           background: #ffffff;
@@ -468,12 +476,14 @@ export const generateReceiptHTML = (data, options = {}) => {
       <div class="receipt-container">
         <!-- Store Header -->
         <div class="text-center">
-          <img src="${LOGO_BASE64}" alt="The Peppers" class="logo-img" />
+          ${showLogo ? `<img src="${LOGO_BASE64}" alt="The Peppers" class="logo-img" />` : ''}
           <div class="brand-name">${storeInfo.name}</div>
-          <div class="tagline">~ ${storeInfo.tagline} ~</div>
-          <div class="store-sub">${storeInfo.category}</div>
-          <div class="store-phone">Tel: ${storeInfo.phone}</div>
-          <div class="store-sub">${storeInfo.address}</div>
+          ${showStoreInfo ? `
+            <div class="tagline">~ ${storeInfo.tagline} ~</div>
+            <div class="store-sub">${storeInfo.category}</div>
+            <div class="store-phone">Tel: ${storeInfo.phone}</div>
+            <div class="store-sub">${storeInfo.address}</div>
+          ` : ''}
           
           <div class="badge-type">*** ${orderType.toUpperCase()} ***</div>
         </div>
@@ -535,11 +545,13 @@ export const generateReceiptHTML = (data, options = {}) => {
 
         <!-- Barcode & Greetings -->
         <div class="barcode-container">
-          ${barcodeSvg}
-          <div class="order-code">*TP-${String(orderNumber).padStart(5, '0')}*</div>
+          ${showBarcode ? `
+            ${barcodeSvg}
+            <div class="order-code">*TP-${String(orderNumber).padStart(5, '0')}*</div>
+          ` : ''}
           <div class="footer-msg">THANK YOU FOR DINING WITH US!</div>
           <div class="footer-sub">Please Visit Us Again Soon</div>
-          <div class="footer-spec">Thermal Slip • 80mm Thermal Roll</div>
+          <div class="footer-spec">Thermal Slip • ${isFixedLength ? '80mm x 210mm' : '80mm Auto-Roll'}</div>
         </div>
       </div>
     </body>

@@ -139,9 +139,13 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
     }
   } = data;
 
-  // Retrieve user font and size preferences
+  // Retrieve user customization preferences
   let fontPref = options.fontStyle;
   let sizePref = options.fontSize;
+  let paperLengthPref = options.paperLength;
+  const showLogo = options.showLogo !== undefined ? options.showLogo : true;
+  const showStoreInfo = options.showStoreInfo !== undefined ? options.showStoreInfo : true;
+  const showBarcode = options.showBarcode !== undefined ? options.showBarcode : true;
 
   if (!fontPref && typeof window !== 'undefined' && window.localStorage) {
     fontPref = window.localStorage.getItem('thepeppers_thermal_font_style');
@@ -149,9 +153,13 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
   if (!sizePref && typeof window !== 'undefined' && window.localStorage) {
     sizePref = window.localStorage.getItem('thepeppers_thermal_font_size');
   }
+  if (!paperLengthPref && typeof window !== 'undefined' && window.localStorage) {
+    paperLengthPref = window.localStorage.getItem('thepeppers_thermal_paper_length');
+  }
 
   const activeFontKey = fontPref === 'mono' ? 'mono' : 'sans';
   const activeSizeKey = ['compact', 'standard', 'large'].includes(sizePref) ? sizePref : 'standard';
+  const isFixedLength = paperLengthPref === 'fixed';
 
   const fontFamily = RECEIPT_FONTS[activeFontKey];
   const sizeConfig = RECEIPT_SIZES[activeSizeKey];
@@ -178,15 +186,17 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
   }).join('');
 
   return `
-    <div style="width: 272px; min-height: auto; height: auto; margin: 0 auto; padding: 12px 10px 16px 10px; background: #ffffff; color: #000000; font-family: ${fontFamily}; box-sizing: border-box; font-size: ${sizeConfig.base}; line-height: 1.35; -webkit-font-smoothing: antialiased;">
+    <div style="width: 272px; min-height: ${isFixedLength ? '700px' : 'auto'}; height: auto; margin: 0 auto; padding: 12px 10px 16px 10px; background: #ffffff; color: #000000; font-family: ${fontFamily}; box-sizing: border-box; font-size: ${sizeConfig.base}; line-height: 1.35; -webkit-font-smoothing: antialiased;">
       <!-- Store Header with Original Logo -->
       <div style="text-align: center; margin-bottom: 6px;">
-        <img src="${LOGO_BASE64}" alt="The Peppers" style="width: 52px; height: 52px; object-fit: contain; margin: 0 auto 5px auto; display: block; border-radius: 50%; border: 1.5px solid #000000;" />
+        ${showLogo ? `<img src="${LOGO_BASE64}" alt="The Peppers" style="width: 52px; height: 52px; object-fit: contain; margin: 0 auto 5px auto; display: block; border-radius: 50%; border: 1.5px solid #000000;" />` : ''}
         <div style="font-size: ${sizeConfig.brand}; font-weight: 800; letter-spacing: 0.8px; line-height: 1.15; margin-bottom: 2px; text-transform: uppercase; color: #000000;">${storeInfo.name}</div>
-        <div style="font-size: ${sizeConfig.sub}; font-style: italic; color: #111111; margin-bottom: 2px; font-weight: 500;">~ ${storeInfo.tagline} ~</div>
-        <div style="font-size: ${sizeConfig.sub}; color: #222222; font-weight: 500; line-height: 1.3;">${storeInfo.category}</div>
-        <div style="font-size: calc(${sizeConfig.sub} + 1px); color: #000000; font-weight: 700;">Tel: ${storeInfo.phone}</div>
-        <div style="font-size: ${sizeConfig.sub}; color: #222222; font-weight: 500;">${storeInfo.address}</div>
+        ${showStoreInfo ? `
+          <div style="font-size: ${sizeConfig.sub}; font-style: italic; color: #111111; margin-bottom: 2px; font-weight: 500;">~ ${storeInfo.tagline} ~</div>
+          <div style="font-size: ${sizeConfig.sub}; color: #222222; font-weight: 500; line-height: 1.3;">${storeInfo.category}</div>
+          <div style="font-size: calc(${sizeConfig.sub} + 1px); color: #000000; font-weight: 700;">Tel: ${storeInfo.phone}</div>
+          <div style="font-size: ${sizeConfig.sub}; color: #222222; font-weight: 500;">${storeInfo.address}</div>
+        ` : ''}
         
         <div style="display: inline-block; font-size: calc(${sizeConfig.base} - 0.5px); font-weight: 700; letter-spacing: 1.5px; padding: 2.5px 12px; border: 1.5px solid #000000; border-radius: 2px; margin: 6px auto 3px auto; text-transform: uppercase; color: #000000;">
           *** ${orderType.toUpperCase()} ***
@@ -254,15 +264,17 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
 
       <!-- Footer Barcode & Notes -->
       <div style="text-align: center; margin-top: 6px; color: #000000;">
-        <div style="margin: 4px 0 2px 0;">
-          ${barcodeSvg}
-        </div>
-        <div style="font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace; font-size: 11px; letter-spacing: 2px; margin: 3px 0 6px 0; font-weight: 600; color: #000000;">
-          *TP-${String(orderNumber).padStart(5, '0')}*
-        </div>
+        ${showBarcode ? `
+          <div style="margin: 4px 0 2px 0;">
+            ${barcodeSvg}
+          </div>
+          <div style="font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace; font-size: 11px; letter-spacing: 2px; margin: 3px 0 6px 0; font-weight: 600; color: #000000;">
+            *TP-${String(orderNumber).padStart(5, '0')}*
+          </div>
+        ` : ''}
         <div style="font-weight: 700; font-size: calc(${sizeConfig.base} - 1px); text-transform: uppercase; letter-spacing: 0.5px; color: #000000;">THANK YOU FOR DINING WITH US!</div>
         <div style="font-size: ${sizeConfig.sub}; margin-top: 2px; font-weight: 500; color: #222222;">PLEASE VISIT US AGAIN SOON</div>
-        <div style="font-size: calc(${sizeConfig.sub} - 1.5px); margin-top: 5px; font-weight: 500; color: #444444; letter-spacing: 0.3px;">Thermal Slip • 80mm Thermal Roll</div>
+        <div style="font-size: calc(${sizeConfig.sub} - 1.5px); margin-top: 5px; font-weight: 500; color: #444444; letter-spacing: 0.3px;">Thermal Slip • ${isFixedLength ? '80mm x 210mm' : '80mm Auto-Roll'}</div>
       </div>
     </div>
   `;
@@ -290,7 +302,7 @@ export const downloadThermalReceiptPDF = async (data, options = {}) => {
     // Dynamic height matching content length perfectly
     const pageWidth = 80;
     const imgHeight = (canvas.height * pageWidth) / canvas.width;
-    const pageHeight = Math.max(Math.ceil(imgHeight), 60);
+    const pageHeight = isFixedLength ? 210 : Math.max(Math.ceil(imgHeight), 50);
 
     const pdf = createPDFInstance({
       orientation: 'portrait',
