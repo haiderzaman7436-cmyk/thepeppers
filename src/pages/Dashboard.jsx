@@ -57,14 +57,17 @@ const Dashboard = () => {
       setLoading(false);
       
       // Auto-select the latest day with records if no date is currently selected
-      if (!selectedDate && invoices.length > 0) {
-        setSelectedDate(invoices[0].date);
-      } else if (invoices.length === 0) {
-        setSelectedDate(new Date().toISOString().split('T')[0]);
-      }
+      setSelectedDate(prev => {
+        if (!prev && invoices.length > 0) {
+          return invoices[0].date;
+        } else if (!prev) {
+          return new Date().toISOString().split('T')[0];
+        }
+        return prev;
+      });
     });
     return () => unsubscribe();
-  }, [selectedDate]);
+  }, []);
 
   const handlePreviousDay = () => {
     const d = new Date(selectedDate);

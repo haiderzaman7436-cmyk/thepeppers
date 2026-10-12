@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import './Login.css';
 import logo from '../assets/logo.jpg';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +11,16 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, loading: authLoading, login } = useAuth();
+
+  // If already authenticated, redirect to destination or dashboard
+  useEffect(() => {
+    if (user && !authLoading) {
+      const redirectPath = location.state?.from?.pathname || '/';
+      navigate(redirectPath, { replace: true });
+    }
+  }, [user, authLoading, navigate, location]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -21,8 +30,9 @@ const Login = () => {
     setLoading(true);
     
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate('/');
+      await login(email, password);
+      const redirectPath = location.state?.from?.pathname || '/';
+      navigate(redirectPath, { replace: true });
     } catch (err) {
       setError('Invalid email or password. Please try again.');
     } finally {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, Eye } from 'lucide-react';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
 import { printThermalReceipt } from '../utils/thermalPrinter';
 
@@ -16,6 +16,7 @@ const POS = () => {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
+  const [orderSuccessMessage, setOrderSuccessMessage] = useState(null);
   const [selectedSizes, setSelectedSizes] = useState({}); // Keeps track of dropdown selections
   const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
   
@@ -84,19 +85,27 @@ const POS = () => {
 
     const fetchLatestOrderNumber = async () => {
       try {
-        const invoicesSnapshot = await getDocs(collection(db, 'invoices'));
+        let snapshot;
+        try {
+          const q = query(collection(db, 'invoices'), orderBy('createdAt', 'desc'), limit(15));
+          snapshot = await getDocs(q);
+        } catch {
+          snapshot = await getDocs(query(collection(db, 'invoices'), limit(25)));
+        }
         let maxId = 0;
-        invoicesSnapshot.forEach(doc => {
+        snapshot.forEach(doc => {
           const data = doc.data();
           const num = data.invoiceNumber || data.orderNumber || 0;
           if (typeof num === 'number' && num > maxId) {
             maxId = num;
-          } else if (typeof num === 'string' && !isNaN(parseInt(num, 10))) {
-            const parsed = parseInt(num, 10);
-            if (parsed > maxId) maxId = parsed;
+          } else if (typeof num === 'string') {
+            const parsed = parseInt(num.replace(/\D/g, ''), 10);
+            if (!isNaN(parsed) && parsed > maxId) maxId = parsed;
           }
         });
-        setCurrentOrderNumber(maxId + 1);
+        if (maxId > 0) {
+          setCurrentOrderNumber(maxId + 1);
+        }
       } catch (err) {
         console.error("Error fetching max order number:", err);
       }
@@ -196,21 +205,26 @@ const POS = () => {
   };
 
   const handleCheckoutClick = () => {
-    if (cart.length === 0) return;
-    setShowInvoicePreview(true);
+    if (cart.length === 0 || isProcessing) return;
+    // DIRECT PRINT: Execute checkout and send directly to printer without opening preview modal!
+    confirmCheckout();
   };
 
   const confirmCheckout = async () => {
+    if (cart.length === 0 || isProcessing) return;
     setIsProcessing(true);
 
     try {
       const totalAmount = calculateTotal();
       const totalCost = cart.reduce((acc, curr) => acc + ((curr.costPrice ? parseInt(curr.costPrice.toString().replace(/\D/g, ''), 10) || 0 : 0) * curr.quantity), 0);
       
+      const orderNum = currentOrderNumber;
+      const custName = customerName.trim() || 'Walk-in Customer';
+
       const newSale = {
-        invoiceNumber: currentOrderNumber,
-        orderNumber: currentOrderNumber,
-        customer: customerName || 'Walk-in Customer',
+        invoiceNumber: orderNum,
+        orderNumber: orderNum,
+        customer: custName,
         orderType: orderType,
         paymentMethod: paymentMethod,
         items: cart.reduce((acc, curr) => acc + curr.quantity, 0),
@@ -227,10 +241,31 @@ const POS = () => {
         status: 'Completed',
         createdAt: new Date()
       };
-      await addDoc(collection(db, 'invoices'), newSale);
-      
-      // Update inventory stock levels
-      for (const cartItem of cart) {
+
+      // Prepare 3-inch receipt data
+      const receiptData = {
+        orderNumber: orderNum,
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        customer: custName,
+        orderType: orderType,
+        paymentMethod: paymentMethod,
+        items: cart.map(c => ({
+          name: c.name,
+          quantity: c.quantity,
+          price: c.parsedPrice
+        })),
+        total: `Rs ${totalAmount}`
+      };
+
+      // DIRECT PRINT: Send directly to thermal printer immediately with zero preview modal delay!
+      printThermalReceipt(receiptData);
+
+      // Async Firestore invoice write
+      const salePromise = addDoc(collection(db, 'invoices'), newSale);
+
+      // Concurrently update inventory stock levels in parallel (super fast)
+      const stockUpdates = cart.map(async (cartItem) => {
         try {
           const baseId = cartItem.id.split('-')[0];
           const docRef = doc(db, 'inventory', baseId);
@@ -242,33 +277,22 @@ const POS = () => {
         } catch (e) {
           console.error("Failed to update stock for item", cartItem.name, e);
         }
-      }
-      
-      // Prepare 3-inch receipt data and directly send to NokoPrint / thermal printer
-      const receiptData = {
-        orderNumber: currentOrderNumber,
-        date: new Date().toLocaleDateString(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        customer: customerName || 'Walk-in Customer',
-        orderType: orderType,
-        paymentMethod: paymentMethod,
-        items: cart.map(c => ({
-          name: c.name,
-          quantity: c.quantity,
-          price: c.parsedPrice
-        })),
-        total: `Rs ${totalAmount}`
-      };
-      
-      // Directly dispatch to NokoPrint printer
-      printThermalReceipt(receiptData);
+      });
+
+      await Promise.all([salePromise, ...stockUpdates]);
 
       // Increment order number for next transaction
       setCurrentOrderNumber(prev => prev + 1);
       
+      // Clear inputs for next customer instantly
       setCart([]);
       setCustomerName('');
       setShowInvoicePreview(false);
+
+      // Fast visual confirmation toast
+      setOrderSuccessMessage(`Order #${orderNum} completed & sent directly to printer!`);
+      setTimeout(() => setOrderSuccessMessage(null), 3500);
+
     } catch (error) {
       console.error("Error during checkout: ", error);
       alert("Checkout failed. Please try again.");
@@ -509,15 +533,33 @@ const POS = () => {
           </button>
         </div>
 
+        {/* Instant Order Success Notification Banner */}
+        {orderSuccessMessage && (
+          <div className="mx-4 mt-3 p-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-xs font-bold flex items-center gap-2 animate-fade-in shadow-xs">
+            <CheckCircle size={16} className="text-green-600 shrink-0" />
+            <span>{orderSuccessMessage}</span>
+          </div>
+        )}
+
         {/* Customer & Order Details Form */}
         <div className="px-6 py-4 flex flex-col gap-3 border-b border-gray-100 bg-gray-50/50">
-          <input 
-            type="text" 
-            placeholder="Customer Name (Required)" 
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-black focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
-          />
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Customer Name (Default: Walk-in)" 
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-black focus:outline-none focus:border-[var(--accent-primary)] transition-colors bg-white"
+            />
+            <button
+              type="button"
+              onClick={() => setCustomerName('Walk-in')}
+              className="px-3 py-2 bg-gray-200 hover:bg-gray-300 active:scale-95 text-gray-700 text-xs font-bold rounded-xl transition-all cursor-pointer shrink-0"
+              title="Quick Walk-in Customer"
+            >
+              Walk-in
+            </button>
+          </div>
           <select 
             value={orderType}
             onChange={(e) => setOrderType(e.target.value)}
@@ -576,25 +618,38 @@ const POS = () => {
         {/* Cart Footer / Checkout */}
         <div className="px-6 py-5 border-t border-gray-100 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
           
-          <div className="flex justify-between items-center pt-2 border-gray-100 mb-5">
+          <div className="flex justify-between items-center pt-2 border-gray-100 mb-4">
             <span className="font-bold text-lg text-black">Total</span>
             <span className="font-black text-2xl text-[var(--accent-primary)] tracking-tight">Rs {calculateTotal()}</span>
           </div>
           
           <button 
-            onClick={handleCheckoutClick}
-            disabled={cart.length === 0 || !customerName.trim()}
-            className="w-full py-4 rounded-xl font-bold text-base text-white flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-red-500/20"
+            onClick={confirmCheckout}
+            disabled={cart.length === 0 || isProcessing}
+            className="w-full py-4 rounded-xl font-bold text-base text-white flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-red-500/20 cursor-pointer"
             style={{ 
-              backgroundColor: (cart.length === 0 || !customerName.trim()) ? '#e5e7eb' : 'var(--accent-primary)', 
-              cursor: (cart.length === 0 || !customerName.trim()) ? 'not-allowed' : 'pointer',
-              color: (cart.length === 0 || !customerName.trim()) ? '#9ca3af' : '#ffffff'
+              backgroundColor: cart.length === 0 ? '#e5e7eb' : 'var(--accent-primary)', 
+              cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
+              color: cart.length === 0 ? '#9ca3af' : '#ffffff'
             }}
           >
-            <CreditCard size={18} /> {(!customerName.trim()) ? "Enter Name to Pay" : "Pay Now"}
+            <Printer size={18} /> {isProcessing ? "Processing & Printing..." : "Direct Pay & Print"}
           </button>
+
+          {cart.length > 0 && (
+            <div className="flex justify-center mt-2">
+              <button 
+                type="button"
+                onClick={() => setShowInvoicePreview(true)}
+                className="text-xs font-semibold text-gray-500 hover:text-gray-900 flex items-center gap-1 transition-colors py-0.5 cursor-pointer"
+                title="Optional: Preview slip before printing"
+              >
+                <Eye size={13} /> <span>Optional: Preview Slip</span>
+              </button>
+            </div>
+          )}
           
-          <div className="flex justify-between gap-3 mt-4">
+          <div className="flex justify-between gap-3 mt-3">
             <button 
               onClick={() => setPaymentMethod('Cash')}
               className={`flex-1 py-2.5 flex flex-col items-center gap-1.5 border rounded-xl text-xs font-bold transition-colors ${paymentMethod === 'Cash' ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)]' : 'bg-white text-black border-gray-200 hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] active:bg-[var(--accent-primary)] active:text-white group'}`}

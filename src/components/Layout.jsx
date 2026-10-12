@@ -14,16 +14,22 @@ import {
 } from 'lucide-react';
 import './Layout.css';
 import logo from '../assets/logo.jpg';
+import { useAuth } from '../context/AuthContext';
 
 const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(true); // Default collapsed for iPad POS
 
   const isPosPage = location.pathname === '/pos';
 
-  const handleLogout = () => {
-    // Implement firebase sign out later
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error("Logout error", e);
+    }
     navigate('/login');
   };
 
@@ -114,9 +120,11 @@ const Layout = () => {
             <div className="user-profile">
               <div className="text-right">
                 <p className="text-sm font-semibold text-primary">Manager</p>
-                <p className="text-xs text-secondary">admin@thepeppers.com</p>
+                <p className="text-xs text-secondary">{user?.email || 'admin@thepeppers.com'}</p>
               </div>
-              <div className="avatar">M</div>
+              <div className="avatar">
+                {user?.email ? user.email.charAt(0).toUpperCase() : 'M'}
+              </div>
             </div>
           </header>
         )}
