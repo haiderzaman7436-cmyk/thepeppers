@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Printer, Mail, Database, ChevronDown, ChevronUp, Search, RotateCw, Sliders } from 'lucide-react';
+import { FileText, Printer, Mail, Database, ChevronDown, ChevronUp, Search, RotateCw, Sliders, Smartphone } from 'lucide-react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
 import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
-import { printThermalReceipt } from '../utils/thermalPrinter';
+import { printThermalReceipt, openDirectNokoPrint } from '../utils/thermalPrinter';
 
 const Invoices = () => {
   const [invoicesData, setInvoicesData] = useState([]);
@@ -215,6 +215,27 @@ const Invoices = () => {
                         title="Send directly to thermal printer without preview modal"
                       >
                         <Printer size={15} /> Direct Print
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          const receiptData = {
+                            orderNumber: invoice.orderNumber || invoice.invoiceNumber || 'N/A',
+                            date: invoice.date || new Date().toLocaleDateString(),
+                            time: invoice.createdAt?.toDate ? invoice.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (invoice.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+                            customer: invoice.customer || 'Walk-in Customer',
+                            orderType: invoice.orderType || 'Dine In',
+                            paymentMethod: invoice.paymentMethod || 'Cash',
+                            items: invoice.cartDetails || invoice.items || [],
+                            total: invoice.total || '0'
+                          };
+                          openDirectNokoPrint(receiptData);
+                        }}
+                        className="btn flex items-center gap-1.5 shadow-sm text-xs font-bold text-white bg-slate-900 hover:bg-slate-800" 
+                        style={{ padding: '0.6rem 1rem' }}
+                        title="Send receipt directly to NokoPrint app on tablet"
+                      >
+                        <Smartphone size={15} /> Noko Print
                       </button>
 
                       <button 

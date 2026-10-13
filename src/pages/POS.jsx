@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, ChevronRight } from 'lucide-react';
-import { printThermalReceipt } from '../utils/thermalPrinter';
+import { printThermalReceipt, openDirectNokoPrint } from '../utils/thermalPrinter';
 
 const POS = () => {
   const [inventory, setInventory] = useState([]);
@@ -209,7 +209,7 @@ const POS = () => {
     confirmCheckout();
   };
 
-  const confirmCheckout = async () => {
+  const confirmCheckout = async (printMode = 'thermal') => {
     if (cart.length === 0 || isProcessing) return;
     setIsProcessing(true);
 
@@ -257,8 +257,12 @@ const POS = () => {
         total: `Rs ${totalAmount}`
       };
 
-      // DIRECT PRINT: Send directly to thermal printer immediately with zero preview modal delay!
-      printThermalReceipt(receiptData);
+      // DIRECT PRINT: Send directly to thermal printer or NokoPrint immediately with zero preview modal delay!
+      if (printMode === 'nokoprint') {
+        openDirectNokoPrint(receiptData);
+      } else {
+        printThermalReceipt(receiptData);
+      }
 
       // Async Firestore invoice write
       const salePromise = addDoc(collection(db, 'invoices'), newSale);
@@ -288,7 +292,11 @@ const POS = () => {
       setCustomerName('');
 
       // Fast visual confirmation toast
-      setOrderSuccessMessage(`Order #${orderNum} completed & sent directly to printer!`);
+      setOrderSuccessMessage(
+        printMode === 'nokoprint' 
+          ? `Order #${orderNum} completed & sent directly to NokoPrint!` 
+          : `Order #${orderNum} completed & sent directly to printer!`
+      );
       setTimeout(() => setOrderSuccessMessage(null), 3500);
 
     } catch (error) {
@@ -679,18 +687,36 @@ const POS = () => {
             <span className="font-black text-2xl text-[var(--accent-primary)] tracking-tight">Rs {calculateTotal()}</span>
           </div>
           
-          <button 
-            onClick={confirmCheckout}
-            disabled={cart.length === 0 || isProcessing}
-            className="w-full py-4 rounded-xl font-bold text-base text-white flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-red-500/20 cursor-pointer"
-            style={{ 
-              backgroundColor: cart.length === 0 ? '#e5e7eb' : 'var(--accent-primary)', 
-              cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
-              color: cart.length === 0 ? '#9ca3af' : '#ffffff'
-            }}
-          >
-            <Printer size={18} /> {isProcessing ? "Processing & Printing..." : "Direct Pay & Print"}
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => confirmCheckout('thermal')}
+              disabled={cart.length === 0 || isProcessing}
+              className="flex-1 py-3.5 sm:py-4 rounded-xl font-bold text-sm sm:text-base text-white flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 shadow-md shadow-red-500/20 cursor-pointer"
+              style={{ 
+                backgroundColor: cart.length === 0 ? '#e5e7eb' : 'var(--accent-primary)', 
+                cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
+                color: cart.length === 0 ? '#9ca3af' : '#ffffff'
+              }}
+              title="Direct Pay & Print immediately"
+            >
+              <Printer size={18} /> <span>{isProcessing ? "Processing..." : "Direct Pay & Print"}</span>
+            </button>
+
+            <button 
+              type="button"
+              onClick={() => confirmCheckout('nokoprint')}
+              disabled={cart.length === 0 || isProcessing}
+              className="px-3.5 sm:px-4 py-3.5 sm:py-4 rounded-xl font-bold text-xs sm:text-sm text-white flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer shrink-0"
+              style={{ 
+                backgroundColor: cart.length === 0 ? '#e5e7eb' : '#0f172a', 
+                cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
+                color: cart.length === 0 ? '#9ca3af' : '#ffffff'
+              }}
+              title="Pay & Send directly to NokoPrint app on tablet"
+            >
+              <Smartphone size={16} /> <span>Noko Print</span>
+            </button>
+          </div>
 
           <div className="flex justify-between gap-3 mt-3">
             <button 

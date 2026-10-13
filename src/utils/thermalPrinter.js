@@ -99,8 +99,8 @@ export const generateReceiptText = (data) => {
       name: "THE PEPPERS",
       tagline: "Flavor & Spice",
       category: "Fast Food • Pizza • Burgers • Platters",
-      phone: "0300-1234567",
-      address: "Main Branch, Food Street"
+      phone: "0325 7233444",
+      address: "Gondlanwala Road, Rajkot Main Bazar Near Babu Bakers Gujranwala"
     }
   } = data;
 
