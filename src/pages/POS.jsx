@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, Eye, ChevronRight, Sliders } from 'lucide-react';
-import ThermalReceiptModal from '../components/ThermalReceiptModal';
+import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, ChevronRight } from 'lucide-react';
 import { printThermalReceipt } from '../utils/thermalPrinter';
 
 const POS = () => {
@@ -15,7 +14,6 @@ const POS = () => {
   const [orderType, setOrderType] = useState('Dine In');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showInvoicePreview, setShowInvoicePreview] = useState(false);
   const [orderSuccessMessage, setOrderSuccessMessage] = useState(null);
   const [selectedSizes, setSelectedSizes] = useState({}); // Keeps track of dropdown selections
   const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
@@ -288,7 +286,6 @@ const POS = () => {
       // Clear inputs for next customer instantly
       setCart([]);
       setCustomerName('');
-      setShowInvoicePreview(false);
 
       // Fast visual confirmation toast
       setOrderSuccessMessage(`Order #${orderNum} completed & sent directly to printer!`);
@@ -351,7 +348,7 @@ const POS = () => {
               : 'text-gray-600 hover:text-black'
           }`}
         >
-          🍽️ Menu Items ({filteredItems.length})
+          Menu Items ({filteredItems.length})
         </button>
         <button
           type="button"
@@ -583,14 +580,6 @@ const POS = () => {
             >
               <RotateCw size={15} />
             </button>
-            <button 
-              type="button"
-              onClick={() => setShowInvoicePreview(true)}
-              className="text-gray-400 hover:text-gray-800 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-              title="Receipt Settings (Fonts, Paper, Logo)"
-            >
-              <Sliders size={15} />
-            </button>
           </div>
           <button 
             onClick={() => setCart([])}
@@ -632,9 +621,9 @@ const POS = () => {
             onChange={(e) => setOrderType(e.target.value)}
             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-black focus:outline-none focus:border-[var(--accent-primary)] transition-colors bg-white cursor-pointer"
           >
-            <option value="Dine In">🍽️ Dine In</option>
-            <option value="Takeaway">🛍️ Takeaway</option>
-            <option value="Delivery">🛵 Delivery</option>
+            <option value="Dine In">Dine In</option>
+            <option value="Takeaway">Takeaway</option>
+            <option value="Delivery">Delivery</option>
           </select>
         </div>
 
@@ -703,19 +692,6 @@ const POS = () => {
             <Printer size={18} /> {isProcessing ? "Processing & Printing..." : "Direct Pay & Print"}
           </button>
 
-          {cart.length > 0 && (
-            <div className="flex justify-center mt-2">
-              <button 
-                type="button"
-                onClick={() => setShowInvoicePreview(true)}
-                className="text-xs font-semibold text-gray-400 hover:text-gray-700 flex items-center gap-1.5 transition-colors py-0.5 cursor-pointer"
-                title="Adjust receipt settings, layout, and preview thermal slip"
-              >
-                <Sliders size={12} /> <span>Receipt Settings & Preview</span>
-              </button>
-            </div>
-          )}
-          
           <div className="flex justify-between gap-3 mt-3">
             <button 
               onClick={() => setPaymentMethod('Cash')}
@@ -732,32 +708,6 @@ const POS = () => {
           </div>
         </div>
       </div>
-
-      {/* Modal removed in favor of dropdowns */}
-
-      {/* 3-Inch Professional Thermal Receipt Modal (NokoPrint Ready) */}
-      <ThermalReceiptModal 
-        isOpen={showInvoicePreview}
-        onClose={() => setShowInvoicePreview(false)}
-        data={{
-          orderNumber: currentOrderNumber,
-          date: new Date().toLocaleDateString(),
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          customer: customerName || 'Walk-in Customer',
-          orderType: orderType,
-          paymentMethod: paymentMethod,
-          items: cart.map(c => ({
-            name: c.name,
-            quantity: c.quantity,
-            price: c.parsedPrice
-          })),
-          total: `Rs ${calculateTotal()}`
-        }}
-        showConfirmButton={true}
-        confirmButtonText="Confirm & Print"
-        onConfirm={confirmCheckout}
-        isProcessing={isProcessing}
-      />
 
     </div>
   );
