@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Printer, Mail, Database, ChevronDown, ChevronUp, Search, RotateCw } from 'lucide-react';
+import { FileText, Printer, Mail, Database, ChevronDown, ChevronUp, Search, RotateCw, Sliders } from 'lucide-react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
 import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
+import { printThermalReceipt } from '../utils/thermalPrinter';
 
 const Invoices = () => {
   const [invoicesData, setInvoicesData] = useState([]);
@@ -143,6 +144,28 @@ const Invoices = () => {
                   </div>
                   
                   <div className="flex items-center gap-2 pr-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const receiptData = {
+                          orderNumber: invoice.orderNumber || invoice.invoiceNumber || 'N/A',
+                          date: invoice.date || new Date().toLocaleDateString(),
+                          time: invoice.createdAt?.toDate ? invoice.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (invoice.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+                          customer: invoice.customer || 'Walk-in Customer',
+                          orderType: invoice.orderType || 'Dine In',
+                          paymentMethod: invoice.paymentMethod || 'Cash',
+                          items: invoice.cartDetails || invoice.items || [],
+                          total: invoice.total || '0'
+                        };
+                        printThermalReceipt(receiptData);
+                      }}
+                      className="p-2 text-gray-500 hover:text-[var(--accent-primary)] hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Direct Print this invoice"
+                    >
+                      <Printer size={16} />
+                    </button>
+
                     <InvoiceDownloadButton 
                       invoice={invoice} 
                       variant="compact" 
@@ -174,11 +197,33 @@ const Invoices = () => {
                       />
 
                       <button 
-                        onClick={() => setReceiptModalInvoice(invoice)}
-                        className="btn btn-secondary flex items-center gap-2 shadow-sm text-xs font-bold hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]" 
+                        onClick={() => {
+                          const receiptData = {
+                            orderNumber: invoice.orderNumber || invoice.invoiceNumber || 'N/A',
+                            date: invoice.date || new Date().toLocaleDateString(),
+                            time: invoice.createdAt?.toDate ? invoice.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (invoice.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+                            customer: invoice.customer || 'Walk-in Customer',
+                            orderType: invoice.orderType || 'Dine In',
+                            paymentMethod: invoice.paymentMethod || 'Cash',
+                            items: invoice.cartDetails || invoice.items || [],
+                            total: invoice.total || '0'
+                          };
+                          printThermalReceipt(receiptData);
+                        }}
+                        className="btn btn-primary flex items-center gap-1.5 shadow-sm text-xs font-bold" 
                         style={{ padding: '0.6rem 1rem' }}
+                        title="Send directly to thermal printer without preview modal"
                       >
-                        <Printer size={15} /> Print Thermal Slip
+                        <Printer size={15} /> Direct Print
+                      </button>
+
+                      <button 
+                        onClick={() => setReceiptModalInvoice(invoice)}
+                        className="btn btn-secondary flex items-center gap-1.5 shadow-sm text-xs font-bold hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]" 
+                        style={{ padding: '0.6rem 1rem' }}
+                        title="Preview slip and adjust receipt preferences"
+                      >
+                        <Sliders size={15} /> Settings & Preview
                       </button>
                     </div>
                   </div>

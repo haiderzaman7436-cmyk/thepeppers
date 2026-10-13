@@ -176,18 +176,26 @@ export const generateReceiptHTML = (data, options = {}) => {
   let fontPref = options.fontStyle;
   let sizePref = options.fontSize;
   let paperLengthPref = options.paperLength;
-  const showLogo = options.showLogo !== undefined ? options.showLogo : true;
-  const showStoreInfo = options.showStoreInfo !== undefined ? options.showStoreInfo : true;
-  const showBarcode = options.showBarcode !== undefined ? options.showBarcode : true;
+  let showLogo = options.showLogo;
+  let showStoreInfo = options.showStoreInfo;
+  let showBarcode = options.showBarcode;
 
-  if (!fontPref && typeof window !== 'undefined' && window.localStorage) {
-    fontPref = window.localStorage.getItem('thepeppers_thermal_font_style');
-  }
-  if (!sizePref && typeof window !== 'undefined' && window.localStorage) {
-    sizePref = window.localStorage.getItem('thepeppers_thermal_font_size');
-  }
-  if (!paperLengthPref && typeof window !== 'undefined' && window.localStorage) {
-    paperLengthPref = window.localStorage.getItem('thepeppers_thermal_paper_length');
+  if (typeof window !== 'undefined' && window.localStorage) {
+    if (!fontPref) fontPref = window.localStorage.getItem('thepeppers_thermal_font_style');
+    if (!sizePref) sizePref = window.localStorage.getItem('thepeppers_thermal_font_size');
+    if (!paperLengthPref) paperLengthPref = window.localStorage.getItem('thepeppers_thermal_paper_length');
+    if (showLogo === undefined) {
+      const val = window.localStorage.getItem('thepeppers_thermal_show_logo');
+      showLogo = val !== null ? val === 'true' : true;
+    }
+    if (showStoreInfo === undefined) {
+      const val = window.localStorage.getItem('thepeppers_thermal_show_info');
+      showStoreInfo = val !== null ? val === 'true' : true;
+    }
+    if (showBarcode === undefined) {
+      const val = window.localStorage.getItem('thepeppers_thermal_show_barcode');
+      showBarcode = val !== null ? val === 'true' : true;
+    }
   }
 
   const activeFontKey = fontPref === 'mono' ? 'mono' : 'sans';
@@ -603,50 +611,32 @@ export const printThermalReceipt = (data, options = {}) => {
   return new Promise((resolve) => {
     try {
       const htmlContent = generateReceiptHTML(data, options);
-      // Strictly detect mobile devices (Android / iOS phones/tablets) - never falsely match Windows touchscreens
-      const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      // On Tablets & Mobile (Android / NokoPrint): Use hidden print container and window.print()
-      if (isMobileDevice) {
-        let printContainer = document.getElementById('nokoprint-print-container');
-        if (!printContainer) {
-          printContainer = document.createElement('div');
-          printContainer.id = 'nokoprint-print-container';
-          printContainer.style.display = 'none';
-          document.body.appendChild(printContainer);
-        }
-
-        printContainer.innerHTML = htmlContent;
-
-        window.focus();
-        setTimeout(() => {
-          try {
-            window.print();
-            resolve(true);
-          } catch (e) {
-            console.error("Mobile window.print error:", e);
-            resolve(false);
-          }
-        }, 120);
-        return;
-      }
-
-      // On Desktop (Windows / Mac): Use isolated hidden iframe for pure 80mm roll print without browser headers/footers
+      // Clean up any stale print frames or containers
       const existingFrame = document.getElementById('thermal-print-frame');
       if (existingFrame && existingFrame.parentNode) {
         existingFrame.parentNode.removeChild(existingFrame);
       }
+      const existingContainer = document.getElementById('nokoprint-print-container');
+      if (existingContainer && existingContainer.parentNode) {
+        existingContainer.parentNode.removeChild(existingContainer);
+      }
 
+      // Create isolated hidden iframe for pure 80mm roll print
+      // Opacity 0.01 + off-screen ensures WebKit / iPadOS Safari and Chrome treat it as active and renderable
+      // without ever leaking its internal <style> into the main document body!
       const printFrame = document.createElement('iframe');
       printFrame.id = 'thermal-print-frame';
+      printFrame.setAttribute('aria-hidden', 'true');
       printFrame.style.position = 'fixed';
       printFrame.style.right = '0';
       printFrame.style.bottom = '0';
       printFrame.style.width = '72mm';
       printFrame.style.height = '100px';
       printFrame.style.border = '0';
+      printFrame.style.opacity = '0.01';
+      printFrame.style.pointerEvents = 'none';
       printFrame.style.zIndex = '-9999';
-      printFrame.style.visibility = 'hidden';
       document.body.appendChild(printFrame);
 
       const frameDoc = printFrame.contentWindow.document;
@@ -654,24 +644,31 @@ export const printThermalReceipt = (data, options = {}) => {
       frameDoc.write(htmlContent);
       frameDoc.close();
 
-      setTimeout(() => {
+      const executePrint = () => {
         try {
           printFrame.contentWindow.focus();
           printFrame.contentWindow.print();
         } catch (printErr) {
-          window.print();
+          console.warn("Iframe print exception:", printErr);
         }
         setTimeout(() => {
           if (printFrame && printFrame.parentNode) {
             document.body.removeChild(printFrame);
           }
           resolve(true);
-        }, 1500);
-      }, 300);
+        }, 2000);
+      };
+
+      // Ensure iframe content & images are completely parsed before triggering print
+      if (frameDoc.readyState === 'complete') {
+        setTimeout(executePrint, 250);
+      } else {
+        printFrame.onload = () => setTimeout(executePrint, 250);
+        setTimeout(executePrint, 500); // Fallback timer
+      }
 
     } catch (err) {
       console.error("Thermal printing error: ", err);
-      window.print();
       resolve(false);
     }
   });

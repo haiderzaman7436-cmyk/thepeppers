@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, Eye, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, Eye, ChevronRight, Sliders } from 'lucide-react';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
 import { printThermalReceipt } from '../utils/thermalPrinter';
 
@@ -583,6 +583,14 @@ const POS = () => {
             >
               <RotateCw size={15} />
             </button>
+            <button 
+              type="button"
+              onClick={() => setShowInvoicePreview(true)}
+              className="text-gray-400 hover:text-gray-800 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              title="Receipt Settings (Fonts, Paper, Logo)"
+            >
+              <Sliders size={15} />
+            </button>
           </div>
           <button 
             onClick={() => setCart([])}
@@ -700,10 +708,10 @@ const POS = () => {
               <button 
                 type="button"
                 onClick={() => setShowInvoicePreview(true)}
-                className="text-xs font-semibold text-gray-500 hover:text-gray-900 flex items-center gap-1 transition-colors py-0.5 cursor-pointer"
-                title="Optional: Preview slip before printing"
+                className="text-xs font-semibold text-gray-400 hover:text-gray-700 flex items-center gap-1.5 transition-colors py-0.5 cursor-pointer"
+                title="Adjust receipt settings, layout, and preview thermal slip"
               >
-                <Eye size={13} /> <span>Optional: Preview Slip</span>
+                <Sliders size={12} /> <span>Receipt Settings & Preview</span>
               </button>
             </div>
           )}
