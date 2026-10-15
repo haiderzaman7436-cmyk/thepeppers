@@ -31,6 +31,14 @@ export const RECEIPT_SIZES = {
   }
 };
 
+export const DEFAULT_STORE_INFO = {
+  name: "THE PEPPERS",
+  tagline: "Flavor & Spice",
+  category: "Fast Food • Pizza • Burgers • Platters",
+  phone: "0325 7233444",
+  address: "Gondlanwala Road, Rajkot Main Bazar, Near Babu Bakers Gujranwala"
+};
+
 /**
  * Robust currency formatter ensuring all amounts consistently display with thousand separators (e.g. Rs 1,499)
  */
@@ -79,11 +87,11 @@ export const generateBarcodeSVG = (orderNumber) => {
   bars.push(`<rect x="${x.toFixed(1)}" y="0" width="2" height="28" fill="#000000"/>`); x += 3.5;
   bars.push(`<rect x="${x.toFixed(1)}" y="0" width="1.5" height="28" fill="#000000"/>`); x += 8;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(x)} 28" width="140" height="24" style="display:block;margin:0 auto;" shape-rendering="crispEdges">${bars.join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(x)} 28" width="140" height="26" style="display:block;margin:0 auto;" shape-rendering="crispEdges">${bars.join('')}</svg>`;
 };
 
 /**
- * Generates plain text receipt formatted for 40/48-column thermal printers in NokoPrint
+ * Generates plain text receipt formatted for standard 48-column 3-inch (80mm) thermal printers
  */
 export const generateReceiptText = (data) => {
   const {
@@ -95,63 +103,63 @@ export const generateReceiptText = (data) => {
     paymentMethod = 'Cash',
     items = [],
     total = 0,
-    storeInfo = {
-      name: "THE PEPPERS",
-      tagline: "Flavor & Spice",
-      category: "Fast Food • Pizza • Burgers • Platters",
-      phone: "0325 7233444",
-      address: "Gondlanwala Road, Rajkot Main Bazar Near Babu Bakers Gujranwala"
-    }
+    storeInfo = DEFAULT_STORE_INFO
   } = data;
 
   const totalQty = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
   const formattedTotal = formatCurrency(total);
 
   let text = '';
-  text += '========================================\n';
-  text += `             ${storeInfo.name}             \n`;
-  text += `          ~ ${storeInfo.tagline} ~        \n`;
-  text += `        ${storeInfo.category}           \n`;
-  text += `           Tel: ${storeInfo.phone}      \n`;
-  text += `        ${storeInfo.address}            \n`;
-  text += '========================================\n';
-  text += `            *** ${orderType.toUpperCase()} ***           \n`;
-  text += '----------------------------------------\n';
-  text += `ORDER #: ${orderNumber}            PAY: ${paymentMethod.toUpperCase()}\n`;
-  text += `Date: ${date}      Time: ${time}\n`;
-  text += `Customer: ${customer}\n`;
-  text += `Counter: POS-01\n`;
-  text += '----------------------------------------\n';
-  text += 'ITEM                       QTY    AMOUNT\n';
-  text += '----------------------------------------\n';
+  text += '================================================\n';
+  text += `                  ${storeInfo.name}                  \n`;
+  text += `              ~ ${storeInfo.tagline} ~             \n`;
+  text += `   ${String(storeInfo.category).slice(0, 42)}   \n`;
+  text += `                Tel: ${storeInfo.phone}                \n`;
+  text += `  ${String(storeInfo.address).slice(0, 44)}  \n`;
+  text += '================================================\n';
+  text += `               *** ${orderType.toUpperCase()} ***               \n`;
+  text += '------------------------------------------------\n';
+  text += `ORDER #: ${orderNumber}`.padEnd(28, ' ') + `Date: ${date}\n`;
+  text += `Customer: ${customer.slice(0, 24)}`.padEnd(28, ' ') + `Time: ${time}\n`;
+  text += `Payment: ${paymentMethod.toUpperCase()} | Counter: POS-01\n`;
+  text += '------------------------------------------------\n';
+  text += 'QTY  ITEM DESCRIPTION                     AMOUNT\n';
+  text += '------------------------------------------------\n';
 
-  items.forEach((item, idx) => {
+  items.forEach((item) => {
     const qty = Number(item.quantity) || 1;
     const price = Number(item.price || item.parsedPrice) || 0;
     const lineTotal = price * qty;
-    text += `${idx + 1}. ${item.name}\n`;
-    text += `   ${qty} x ${formatCurrency(price)}`.padEnd(26) + `${formatCurrency(lineTotal)}\n`;
+    const itemName = String(item.name || 'Item').slice(0, 29);
+    const amtStr = formatCurrency(lineTotal);
+    const qtyStr = `${qty}x`.padEnd(5, ' ');
+    const descStr = itemName.padEnd(31, ' ');
+    const amtPadded = amtStr.padStart(12, ' ');
+    text += `${qtyStr}${descStr}${amtPadded}\n`;
+    if (qty > 1) {
+      text += `     @ ${formatCurrency(price)} each\n`;
+    }
   });
 
-  text += '----------------------------------------\n';
-  text += `Total Items / Qty: ${totalQty}\n`;
-  text += `Subtotal:`.padEnd(26) + `${formattedTotal}\n`;
-  text += '========================================\n';
-  text += `TOTAL DUE:`.padEnd(26) + `${formattedTotal}\n`;
-  text += '========================================\n';
+  text += '------------------------------------------------\n';
+  text += `Total Items / Qty:`.padEnd(36, ' ') + `${totalQty}\n`;
+  text += `Subtotal:`.padEnd(32, ' ') + `${formattedTotal.padStart(16, ' ')}\n`;
+  text += '================================================\n';
+  text += `TOTAL DUE:`.padEnd(28, ' ') + `${formattedTotal.padStart(20, ' ')}\n`;
+  text += '================================================\n';
   text += `Payment Status: PAID (${paymentMethod.toUpperCase()})\n`;
-  text += '----------------------------------------\n';
-  text += '       THANK YOU FOR DINING WITH US!    \n';
-  text += '          PLEASE VISIT US AGAIN!        \n';
-  text += `              *TP-${String(orderNumber).padStart(5, '0')}*              \n`;
-  text += '========================================\n';
+  text += '------------------------------------------------\n';
+  text += '         THANK YOU FOR DINING WITH US!          \n';
+  text += '           PLEASE VISIT US AGAIN SOON           \n';
+  text += `                  *TP-${String(orderNumber).padStart(5, '0')}*                  \n`;
+  text += '================================================\n';
 
   return text;
 };
 
 /**
- * Generates high-legibility 80mm x 210mm HTML for thermal printing
- * Uses calibrated, professional typography designed to eliminate ink bleeding and comic-like faux-bolding
+ * Generates high-legibility 3-inch (80mm) HTML for thermal printing
+ * Uses calibrated, professional typography designed to eliminate ink bleeding and text truncation
  */
 export const generateReceiptHTML = (data, options = {}) => {
   const {
@@ -163,13 +171,7 @@ export const generateReceiptHTML = (data, options = {}) => {
     paymentMethod = 'Cash',
     items = [],
     total = 0,
-    storeInfo = {
-      name: "THE PEPPERS",
-      tagline: "Flavor & Spice",
-      category: "Fast Food • Pizza • Burgers • Platters",
-      phone: "0325 7233444",
-      address: "Gondlanwala Road, Rajkot Main Bazar Near Babu Bakers Gujranwala"
-    }
+    storeInfo = DEFAULT_STORE_INFO
   } = data;
 
   // Retrieve user customization preferences
@@ -296,7 +298,7 @@ export const generateReceiptHTML = (data, options = {}) => {
         .brand-name {
           font-size: ${sizeConfig.brand};
           font-weight: 800;
-          letter-spacing: 0.8px;
+          letter-spacing: 0.5px;
           line-height: 1.15;
           text-transform: uppercase;
           color: #000000;
@@ -306,20 +308,20 @@ export const generateReceiptHTML = (data, options = {}) => {
           font-size: ${sizeConfig.sub};
           font-weight: 500;
           font-style: italic;
-          letter-spacing: 0.3px;
+          letter-spacing: 0.2px;
           color: #111111;
           margin-bottom: 2px;
         }
         .store-sub {
           font-size: ${sizeConfig.sub};
           font-weight: 500;
-          line-height: 1.3;
+          line-height: 1.25;
           color: #222222;
         }
         .store-phone {
           font-size: calc(${sizeConfig.sub} + 1px);
           font-weight: 700;
-          line-height: 1.3;
+          line-height: 1.25;
           color: #000000;
         }
 
@@ -327,28 +329,28 @@ export const generateReceiptHTML = (data, options = {}) => {
           display: inline-block;
           font-size: calc(${sizeConfig.base} - 0.5px);
           font-weight: 700;
-          letter-spacing: 1.5px;
-          padding: 2.5px 12px;
+          letter-spacing: 1px;
+          padding: 2.5px 10px;
           border: 1.5px solid #000000;
           border-radius: 2px;
-          margin: 6px auto 3px auto;
+          margin: 5px auto 2px auto;
           text-transform: uppercase;
           color: #000000;
         }
 
         .divider-dashed {
           border-top: 1px dashed #000000;
-          margin: 6px 0;
+          margin: 5px 0;
         }
         .divider-solid {
           border-top: 1.5px solid #000000;
-          margin: 6px 0;
+          margin: 5px 0;
         }
         .divider-double {
           border-top: 1.5px solid #000000;
           border-bottom: 1.5px solid #000000;
           height: 3px;
-          margin: 6px 0;
+          margin: 5px 0;
         }
 
         .order-title-row {
@@ -357,9 +359,9 @@ export const generateReceiptHTML = (data, options = {}) => {
           align-items: baseline;
           font-size: ${sizeConfig.heading};
           font-weight: 700;
-          letter-spacing: 0.3px;
-          margin-bottom: 3px;
-          padding-bottom: 3px;
+          letter-spacing: 0.2px;
+          margin-bottom: 2.5px;
+          padding-bottom: 2.5px;
           border-bottom: 1px dashed #000000;
           color: #000000;
         }
@@ -382,11 +384,11 @@ export const generateReceiptHTML = (data, options = {}) => {
           align-items: center;
           font-weight: 700;
           font-size: calc(${sizeConfig.base} - 1px);
-          letter-spacing: 0.5px;
-          padding: 3.5px 0;
+          letter-spacing: 0.3px;
+          padding: 3px 0;
           border-top: 1px dashed #000000;
           border-bottom: 1px dashed #000000;
-          margin: 6px 0 3px 0;
+          margin: 5px 0 2px 0;
           text-transform: uppercase;
           color: #000000;
         }
@@ -407,12 +409,12 @@ export const generateReceiptHTML = (data, options = {}) => {
         }
 
         .items-list {
-          margin: 2px 0 4px 0;
+          margin: 2px 0 3px 0;
         }
         .item-row {
           display: flex;
           align-items: flex-start;
-          padding: 3.5px 0;
+          padding: 3px 0;
           border-bottom: 0.5px dashed #cccccc;
         }
         .item-row:last-child {
@@ -435,7 +437,7 @@ export const generateReceiptHTML = (data, options = {}) => {
         .item-name {
           font-size: ${sizeConfig.base};
           font-weight: 600;
-          line-height: 1.3;
+          line-height: 1.25;
           color: #000000;
           word-break: break-word;
         }
@@ -604,27 +606,231 @@ export const generateReceiptHTML = (data, options = {}) => {
 };
 
 /**
- * Triggers printing strictly formatted as 80mm x 210mm
- * Optimized for Desktop browsers, Tablets & NokoPrint
+ * Default LAN Printer Network Configuration
+ * Ethernet / Wi-Fi thermal receipt printer IP address: 192.168.100.55 (Port: 9100)
  */
-export const printThermalReceipt = (data, options = {}) => {
+export const DEFAULT_PRINTER_IP = '192.168.100.55';
+export const DEFAULT_PRINTER_PORT = 9100;
+
+export const getPrinterConfig = () => {
+  let ip = DEFAULT_PRINTER_IP;
+  let port = DEFAULT_PRINTER_PORT;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    ip = window.localStorage.getItem('thepeppers_printer_ip') || DEFAULT_PRINTER_IP;
+    port = parseInt(window.localStorage.getItem('thepeppers_printer_port') || '9100', 10) || DEFAULT_PRINTER_PORT;
+  }
+  return { ip, port };
+};
+
+export const setPrinterConfig = (ip, port = DEFAULT_PRINTER_PORT) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem('thepeppers_printer_ip', ip);
+    window.localStorage.setItem('thepeppers_printer_port', String(port));
+  }
+};
+
+/**
+ * Builds standard ESC/POS binary buffer for 3-inch (80mm / 48-column) network thermal printers (port 9100)
+ */
+export const generateESCPOSBuffer = (data) => {
+  const {
+    orderNumber = 'N/A',
+    date = new Date().toLocaleDateString(),
+    time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    customer = 'Walk-in Customer',
+    orderType = 'Dine In',
+    paymentMethod = 'Cash',
+    items = [],
+    total = 0,
+    storeInfo = DEFAULT_STORE_INFO
+  } = data;
+
+  const encoder = new TextEncoder();
+  const parts = [];
+
+  const addBytes = (...bytes) => parts.push(new Uint8Array(bytes));
+  const addText = (str) => parts.push(encoder.encode(str));
+
+  // 1. Initialize printer (ESC @)
+  addBytes(0x1B, 0x40);
+
+  // 2. Code Table: PC437 Standard (ESC t 0)
+  addBytes(0x1B, 0x74, 0x00);
+
+  // 3. Center alignment (ESC a 1)
+  addBytes(0x1B, 0x61, 0x01);
+
+  // 4. Double height & width for header (GS ! 0x11)
+  addBytes(0x1D, 0x21, 0x11);
+  addText(`${storeInfo.name}\n`);
+
+  // 5. Normal font size (GS ! 0x00)
+  addBytes(0x1D, 0x21, 0x00);
+  addText(`~ ${storeInfo.tagline} ~\n`);
+  addText(`${storeInfo.category}\n`);
+  addText(`Tel: ${storeInfo.phone}\n`);
+  addText(`${storeInfo.address}\n\n`);
+
+  // Order Type Banner (Bold)
+  addBytes(0x1B, 0x45, 0x01);
+  addText(`*** ${orderType.toUpperCase()} ***\n`);
+  addBytes(0x1B, 0x45, 0x00);
+
+  // Separator (48 chars for 80mm / 3-inch roll)
+  addText("------------------------------------------------\n");
+
+  // Align Left (ESC a 0)
+  addBytes(0x1B, 0x61, 0x00);
+  const orderLine = `ORDER #: ${orderNumber}`.padEnd(28, ' ') + `Date: ${date}\n`;
+  addText(orderLine);
+  const custLine = `Customer: ${customer.slice(0, 22)}`.padEnd(28, ' ') + `Time: ${time}\n`;
+  addText(custLine);
+  addText(`Payment: ${paymentMethod.toUpperCase()} | Counter: POS-01\n`);
+  addText("------------------------------------------------\n");
+  addText("QTY  ITEM DESCRIPTION                     AMOUNT\n");
+  addText("------------------------------------------------\n");
+
+  // Items List
+  const safeItems = Array.isArray(items) ? items : [];
+  safeItems.forEach(item => {
+    const qty = `${String(item.quantity || 1)}x`.padEnd(5, ' ');
+    const lineTotal = formatCurrency((Number(item.price || item.parsedPrice) || 0) * (Number(item.quantity) || 1));
+    
+    let name = String(item.name || 'Item');
+    if (name.length > 29) name = name.substring(0, 27) + '..';
+    const namePadded = name.padEnd(31, ' ');
+    const amountPadded = lineTotal.padStart(12, ' ');
+
+    addText(`${qty}${namePadded}${amountPadded}\n`);
+  });
+
+  addText("------------------------------------------------\n");
+
+  // Total Due (Bold)
+  addBytes(0x1B, 0x61, 0x02); // Align Right
+  addBytes(0x1B, 0x45, 0x01); // Bold on
+  addText(`TOTAL DUE: ${formatCurrency(total)}\n`);
+  addBytes(0x1B, 0x45, 0x00); // Bold off
+
+  addText("------------------------------------------------\n");
+
+  // Footer (Center)
+  addBytes(0x1B, 0x61, 0x01);
+  addText("THANK YOU FOR DINING WITH US!\n");
+  addText("PLEASE VISIT US AGAIN SOON\n");
+
+  // Feed 4 lines
+  addBytes(0x0A, 0x0A, 0x0A, 0x0A);
+
+  // Partial Cut paper (GS V 65 0)
+  addBytes(0x1D, 0x56, 0x41, 0x00);
+
+  // Kick cash drawer (ESC p 0 25 250)
+  addBytes(0x1B, 0x70, 0x00, 0x19, 0xFA);
+
+  // Combine bytes
+  const totalLength = parts.reduce((sum, p) => sum + p.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.length;
+  }
+  return result;
+};
+
+/**
+ * Transmits raw ESC/POS print job directly to LAN thermal printer at 192.168.100.55:9100
+ */
+export const sendLanPrint = async (data, customConfig = {}) => {
+  const config = { ...getPrinterConfig(), ...customConfig };
+  const ip = config.ip || DEFAULT_PRINTER_IP;
+  const port = config.port || DEFAULT_PRINTER_PORT;
+
+  try {
+    const escposBytes = generateESCPOSBuffer(data);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
+
+    // Direct HTTP POST / raw TCP stream to port 9100 on 192.168.100.55
+    await fetch(`http://${ip}:${port}`, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: escposBytes,
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+    console.log(`[LAN Thermal Printer] Raw packet dispatched to ${ip}:${port}`);
+    return { success: true, ip, port };
+  } catch (err) {
+    console.warn(`[LAN Thermal Printer] Attempt to ${ip}:${port}:`, err.message);
+    return { success: false, ip, port, error: err.message };
+  }
+};
+
+/**
+ * Generates an ultra-sharp PNG Blob of the 3-inch (80mm) thermal receipt for sharing / mobile apps
+ */
+export const generateThermalReceiptBlob = async (data, options = {}) => {
+  const html2canvasModule = await import('html2canvas');
+  const html2canvas = html2canvasModule.default || html2canvasModule;
+  const htmlContent = generateReceiptHTML(data, options);
+  
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '0';
+  container.style.top = '0';
+  container.style.width = '272px';
+  container.style.backgroundColor = '#ffffff';
+  container.style.zIndex = '-99999';
+  container.style.pointerEvents = 'none';
+  container.innerHTML = htmlContent;
+  document.body.appendChild(container);
+
+  try {
+    const canvas = await html2canvas(container, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Failed to generate thermal receipt blob"));
+      }, 'image/png');
+    });
+  } finally {
+    if (container && container.parentNode) {
+      document.body.removeChild(container);
+    }
+  }
+};
+
+/**
+ * Triggers printing strictly formatted as 3-inch (80mm roll, 72mm printable width)
+ * Optimized for LAN thermal printing (192.168.100.55) & Desktop/Tablet browsers
+ */
+export const printThermalReceipt = async (data, options = {}) => {
+  // 1. Immediately send ESC/POS signal to LAN printer at 192.168.100.55:9100
+  sendLanPrint(data, options).catch((err) => {
+    console.log("LAN print background dispatch:", err);
+  });
+
+  // 2. Also run browser thermal print dialog via iframe (ensures 100% universal compatibility across all systems)
   return new Promise((resolve) => {
     try {
       const htmlContent = generateReceiptHTML(data, options);
 
-      // Clean up any stale print frames or containers
+      // Clean up any stale print frames
       const existingFrame = document.getElementById('thermal-print-frame');
       if (existingFrame && existingFrame.parentNode) {
         existingFrame.parentNode.removeChild(existingFrame);
       }
-      const existingContainer = document.getElementById('nokoprint-print-container');
-      if (existingContainer && existingContainer.parentNode) {
-        existingContainer.parentNode.removeChild(existingContainer);
-      }
 
-      // Create isolated hidden iframe for pure 80mm roll print
-      // Opacity 0.01 + off-screen ensures WebKit / iPadOS Safari and Chrome treat it as active and renderable
-      // without ever leaking its internal <style> into the main document body!
+      // Create isolated hidden iframe for 3-inch roll (72mm body width)
       const printFrame = document.createElement('iframe');
       printFrame.id = 'thermal-print-frame';
       printFrame.setAttribute('aria-hidden', 'true');
@@ -659,12 +865,11 @@ export const printThermalReceipt = (data, options = {}) => {
         }, 2000);
       };
 
-      // Ensure iframe content & images are completely parsed before triggering print
       if (frameDoc.readyState === 'complete') {
         setTimeout(executePrint, 250);
       } else {
         printFrame.onload = () => setTimeout(executePrint, 250);
-        setTimeout(executePrint, 500); // Fallback timer
+        setTimeout(executePrint, 500);
       }
 
     } catch (err) {
@@ -675,36 +880,60 @@ export const printThermalReceipt = (data, options = {}) => {
 };
 
 /**
- * Direct launch / share to NokoPrint application on Tablets
+ * Direct print support for BR RawPrinter iOS Application
+ * Uses native iOS Share Sheet / file passing so BR RawPrinter can print via Bluetooth or LAN
  */
-export const openDirectNokoPrint = async (data) => {
+export const printWithBRRawPrinter = async (data, options = {}) => {
+  const orderNum = data.orderNumber || data.invoiceNumber || 'Receipt';
   const receiptText = generateReceiptText(data);
 
-  // Method 1: Android Intent targeting com.nokoprint directly
-  const isAndroid = /Android/i.test(navigator.userAgent);
-  if (isAndroid) {
+  try {
+    let file = null;
     try {
-      const intentUrl = `intent:#Intent;action=android.intent.action.SEND;type=text/plain;S.android.intent.extra.TEXT=${encodeURIComponent(receiptText)};package=com.nokoprint;end`;
-      window.location.href = intentUrl;
-      return true;
-    } catch (intentErr) {
-      console.warn("NokoPrint intent redirect error, falling back to Web Share", intentErr);
+      const blob = await generateThermalReceiptBlob(data, options);
+      file = new File([blob], `ThePeppers-Order-${orderNum}.png`, { type: 'image/png' });
+    } catch (blobErr) {
+      console.warn("Could not create PNG file for BR RawPrinter, falling back to text:", blobErr);
     }
-  }
 
-  // Method 2: Web Share API (native share sheet showing NokoPrint on tablet)
-  if (navigator.share) {
-    try {
+    // Method 1: iOS Native Web Share with PNG file (BR RawPrinter appears directly in the native iOS share row)
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
-        title: `Order #${data.orderNumber} - The Peppers`,
+        files: [file],
+        title: `The Peppers - Order #${orderNum}`,
+        text: `Order #${orderNum} - The Peppers Receipt`
+      });
+      return true;
+    }
+
+    // Method 2: Web Share with receipt text
+    if (navigator.share) {
+      await navigator.share({
+        title: `Order #${orderNum} - The Peppers`,
         text: receiptText
       });
       return true;
-    } catch (shareErr) {
-      console.log("Share dismissed or failed", shareErr);
     }
-  }
 
-  // Method 3: Fallback to standard thermal print flow
-  return printThermalReceipt(data);
+    // Method 3: Attempt BR RawPrinter URL scheme (rawprinter:// or br-rawprinter://)
+    try {
+      window.location.href = `rawprinter://print?text=${encodeURIComponent(receiptText)}`;
+    } catch (e) {}
+
+    // Fallback: Trigger standard thermal print
+    return printThermalReceipt(data, options);
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.error("BR RawPrinter error:", err);
+      return printThermalReceipt(data, options);
+    }
+    return false;
+  }
+};
+
+/**
+ * Backward-compatible alias for thermal receipt printing
+ */
+export const openDirectNokoPrint = (data, options = {}) => {
+  return printThermalReceipt(data, options);
 };

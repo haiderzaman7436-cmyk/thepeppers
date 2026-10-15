@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, CheckCircle, X, Receipt, Smartphone, Type, Scissors, Sliders, RotateCcw, RotateCw } from 'lucide-react';
+import { Printer, CheckCircle, X, Receipt, Type, Scissors, Sliders, RotateCcw, RotateCw, Smartphone, Wifi, Loader2 } from 'lucide-react';
 import { 
   printThermalReceipt, 
-  openDirectNokoPrint, 
+  printWithBRRawPrinter,
+  sendLanPrint,
+  getPrinterConfig,
+  setPrinterConfig,
+  DEFAULT_PRINTER_IP,
   formatCurrency, 
   generateBarcodeSVG,
   RECEIPT_FONTS,
-  RECEIPT_SIZES
+  RECEIPT_SIZES,
+  DEFAULT_STORE_INFO
 } from '../utils/thermalPrinter';
 import { LOGO_BASE64 } from '../assets/logoBase64';
 import InvoiceDownloadButton from './InvoiceDownloadButton';
@@ -23,6 +28,12 @@ const ThermalReceiptModal = ({
 }) => {
   const [printSuccess, setPrintSuccess] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
+  const [lanStatus, setLanStatus] = useState(null);
+
+  // LAN Printer IP Configuration (defaults to 192.168.100.55)
+  const [printerIp, setPrinterIp] = useState(() => {
+    return getPrinterConfig().ip;
+  });
 
   // User-customizable receipt preferences (persisted in localStorage)
   const [fontStyle, setFontStyle] = useState(() => {
@@ -145,13 +156,7 @@ const ThermalReceiptModal = ({
     paymentMethod = 'Cash',
     items = [],
     total = 0,
-    storeInfo = {
-      name: "THE PEPPERS",
-      tagline: "Flavor & Spice",
-      category: "Fast Food • Pizza • Burgers • Platters",
-      phone: "0300-1234567",
-      address: "Main Branch, Food Street"
-    }
+    storeInfo = DEFAULT_STORE_INFO
   } = data;
 
   const totalQty = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
@@ -169,15 +174,41 @@ const ThermalReceiptModal = ({
     showBarcode
   };
 
-  const handlePrintOnly = async () => {
+  const handleIpChange = (newIp) => {
+    setPrinterIp(newIp);
+    setPrinterConfig(newIp);
+  };
+
+  const handleLanTest = async () => {
+    setLanStatus('testing');
+    try {
+      const res = await sendLanPrint(data || {
+        orderNumber: 'TEST',
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        customer: 'LAN Test Customer',
+        orderType: 'Test Slip',
+        paymentMethod: 'Cash',
+        items: [{ name: 'Thermal LAN Connection Test', quantity: 1, price: 0 }],
+        total: 'Rs 0',
+        storeInfo: DEFAULT_STORE_INFO
+      }, { ip: printerIp });
+      setLanStatus(res.success ? 'success' : 'failed');
+    } catch (err) {
+      setLanStatus('failed');
+    }
+    setTimeout(() => setLanStatus(null), 3000);
+  };
+
+  const handleBRRawPrinter = async () => {
     setPrintSuccess(true);
-    await printThermalReceipt(data, receiptOptions);
+    await printWithBRRawPrinter(data, receiptOptions);
     setTimeout(() => setPrintSuccess(false), 3000);
   };
 
-  const handleOpenNokoApp = async () => {
+  const handlePrintOnly = async () => {
     setPrintSuccess(true);
-    await openDirectNokoPrint(data);
+    await printThermalReceipt(data, receiptOptions);
     setTimeout(() => setPrintSuccess(false), 3000);
   };
 
@@ -216,7 +247,7 @@ const ThermalReceiptModal = ({
               </div>
               <div>
                 <div className="font-extrabold text-gray-900 text-sm leading-none flex items-center gap-1.5">
-                  Thermal Slip (80mm)
+                  Thermal Slip (3-inch / 80mm)
                   <span className="text-[10px] bg-red-100 text-[var(--accent-primary)] font-bold px-1.5 py-0.2 rounded-sm">
                     {isFixedLength ? '210mm' : 'Auto-Cut'}
                   </span>
@@ -299,7 +330,7 @@ const ThermalReceiptModal = ({
                           ? 'bg-[var(--accent-primary)] text-white shadow-xs'
                           : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
                       }`}
-                      title={`${sz.charAt(0).toUpperCase() + sz.slice(1)} size for 80mm thermal paper`}
+                      title={`${sz.charAt(0).toUpperCase() + sz.slice(1)} size for 3-inch (80mm) thermal paper`}
                     >
                       {sz === 'standard' ? 'Standard' : sz}
                     </button>
@@ -383,20 +414,59 @@ const ThermalReceiptModal = ({
                 </button>
               </div>
             </div>
+
+            {/* Row 3: LAN Thermal Printer IP Address & Test */}
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-1 min-w-[210px]">
+                <Wifi size={13} className="text-emerald-600 shrink-0" />
+                <span className="text-[11px] font-bold text-gray-700">LAN Printer IP:</span>
+                <input
+                  type="text"
+                  value={printerIp}
+                  onChange={(e) => handleIpChange(e.target.value)}
+                  placeholder="192.168.100.55"
+                  className="px-2 py-0.5 text-[11px] font-mono border border-gray-300 rounded focus:border-[var(--accent-primary)] focus:outline-none w-32 bg-gray-50 text-gray-800"
+                  title="Network IP Address of your thermal receipt printer"
+                />
+                <span className="text-[10px] text-gray-400 font-mono">:9100</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLanTest}
+                disabled={lanStatus === 'testing'}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border flex items-center gap-1 transition-all active:scale-95 cursor-pointer ${
+                  lanStatus === 'success' 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
+                    : lanStatus === 'failed'
+                    ? 'bg-amber-50 text-amber-700 border-amber-300'
+                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                }`}
+                title="Send test print command directly to LAN printer at 192.168.100.55"
+              >
+                {lanStatus === 'testing' ? (
+                  <Loader2 size={11} className="animate-spin text-emerald-600" />
+                ) : (
+                  <Wifi size={11} className="text-emerald-600" />
+                )}
+                <span>
+                  {lanStatus === 'testing' ? 'Transmitting...' : lanStatus === 'success' ? 'Signal Sent!' : lanStatus === 'failed' ? 'Failed' : 'Ping / Test LAN'}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Paper Slip Preview Container */}
         <div className="p-3 sm:p-4 overflow-y-auto bg-gray-200/90 flex justify-center items-start flex-1 min-h-0">
           
-          {/* THE 80mm THERMAL PAPER SLIP */}
+          {/* THE 3-INCH (80mm) THERMAL PAPER SLIP */}
           <div 
             className="bg-white text-black shadow-2xl relative select-text my-1 mx-auto"
             style={{ 
               width: '276px', 
               minWidth: '276px',
               maxWidth: '276px',
-              minHeight: isFixedLength ? '620px' : 'auto',
+              minHeight: isFixedLength ? '520px' : 'auto',
               boxSizing: 'border-box',
               padding: '14px 10px 18px 10px',
               fontFamily: activeReceiptFont,
@@ -427,7 +497,7 @@ const ThermalReceiptModal = ({
                 <img 
                   src={LOGO_BASE64} 
                   alt="The Peppers Logo" 
-                  className="w-13 h-13 object-contain mx-auto mb-1.5 rounded-full border-[1.5px] border-black shadow-xs"
+                  className="w-13 h-13 object-contain mx-auto mb-1 rounded-full border-[1.5px] border-black shadow-xs"
                 />
               )}
               <h1 
@@ -457,14 +527,14 @@ const ThermalReceiptModal = ({
             {/* Order Type Badge */}
             <div className="text-center my-1.5">
               <span 
-                className="inline-block border-[1.5px] border-black px-3 py-0.5 font-bold tracking-widest uppercase text-black rounded-xs"
+                className="inline-block border-[1.5px] border-black px-2.5 py-0.5 font-bold tracking-wider uppercase text-black rounded-xs"
                 style={{ fontSize: `calc(${activeSizeConfig.base} - 0.5px)` }}
               >
                 *** {orderType.toUpperCase()} ***
               </span>
             </div>
 
-            <div style={{ borderTop: '1px dashed #000000', margin: '6px 0' }} />
+            <div style={{ borderTop: '1px dashed #000000', margin: '5px 0' }} />
 
             {/* Order Metadata */}
             <div className="mb-1 text-black">
@@ -657,11 +727,13 @@ const ThermalReceiptModal = ({
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button 
-              onClick={handleOpenNokoApp}
-              className="px-2.5 sm:px-3 py-2 rounded-xl font-bold text-xs text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1 active:scale-95 shadow-xs"
-              title="Open directly in NokoPrint on Tablet"
+              type="button"
+              onClick={handleBRRawPrinter}
+              className="px-2.5 sm:px-3 py-2 rounded-xl font-bold text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors flex items-center gap-1.5 active:scale-95 shadow-xs cursor-pointer"
+              title="Print directly using BR RawPrinter iOS Application"
             >
-              <Smartphone size={14} /> <span className="hidden sm:inline">NokoPrint</span>
+              <Smartphone size={14} className="text-indigo-600" />
+              <span>BR RawPrinter</span>
             </button>
 
             <InvoiceDownloadButton 
@@ -672,11 +744,12 @@ const ThermalReceiptModal = ({
             />
 
             <button 
+              type="button"
               onClick={handlePrintOnly}
-              className="px-3 py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-gray-900 hover:bg-black transition-colors flex items-center gap-1.5 active:scale-95 shadow-xs"
-              title="Print directly to thermal printer"
+              className="px-3 py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-gray-900 hover:bg-black transition-colors flex items-center gap-1.5 active:scale-95 shadow-xs cursor-pointer"
+              title={`Direct Print to LAN (${printerIp}) & Browser`}
             >
-              <Printer size={15} /> {printSuccess ? 'Printing...' : 'Print (80mm)'}
+              <Printer size={15} /> <span>{printSuccess ? 'Printing...' : 'LAN Print'}</span>
             </button>
 
             {showConfirmButton && (

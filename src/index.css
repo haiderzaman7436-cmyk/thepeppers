@@ -272,11 +272,7 @@ tbody tr:hover {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
-/* 80mm x 210mm Thermal Receipt & NokoPrint Printing */
-#nokoprint-print-container {
-  display: none !important;
-}
-
+/* 3-inch (80mm) Thermal Receipt Printing */
 @media print {
   @page {
     size: 80mm auto;
@@ -305,19 +301,6 @@ tbody tr:hover {
     display: none !important;
   }
 
-  #nokoprint-print-container {
-    display: block !important;
-    width: 72mm !important;
-    max-width: 72mm !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 auto !important;
-    padding: 2mm 1mm 4mm 1mm !important;
-    background: #fff !important;
-    color: #000 !important;
-    box-sizing: border-box !important;
-  }
-
   .thermal-receipt-printable {
     display: block !important;
     width: 72mm !important;
@@ -325,14 +308,12 @@ tbody tr:hover {
     height: auto !important;
     min-height: 0 !important;
     margin: 0 auto !important;
-    padding: 2mm 1mm 4mm 1mm !important;
+    padding: 2mm 1.5mm 4mm 1.5mm !important;
     background: #fff !important;
     color: #000 !important;
     box-sizing: border-box !important;
   }
 
-  #nokoprint-print-container,
-  #nokoprint-print-container *,
   .thermal-receipt-printable,
   .thermal-receipt-printable * {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;

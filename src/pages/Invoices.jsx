@@ -4,7 +4,7 @@ import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../firebase';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
 import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
-import { printThermalReceipt, openDirectNokoPrint } from '../utils/thermalPrinter';
+import { printThermalReceipt, printWithBRRawPrinter, DEFAULT_STORE_INFO } from '../utils/thermalPrinter';
 
 const Invoices = () => {
   const [invoicesData, setInvoicesData] = useState([]);
@@ -155,15 +155,39 @@ const Invoices = () => {
                           customer: invoice.customer || 'Walk-in Customer',
                           orderType: invoice.orderType || 'Dine In',
                           paymentMethod: invoice.paymentMethod || 'Cash',
+                          storeInfo: invoice.storeInfo || DEFAULT_STORE_INFO,
                           items: invoice.cartDetails || invoice.items || [],
                           total: invoice.total || '0'
                         };
                         printThermalReceipt(receiptData);
                       }}
-                      className="p-2 text-gray-500 hover:text-[var(--accent-primary)] hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                      title="Direct Print this invoice"
+                      className="p-2 text-gray-600 hover:text-[var(--accent-primary)] hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="LAN Thermal Print"
                     >
                       <Printer size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const receiptData = {
+                          orderNumber: invoice.orderNumber || invoice.invoiceNumber || 'N/A',
+                          date: invoice.date || new Date().toLocaleDateString(),
+                          time: invoice.createdAt?.toDate ? invoice.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (invoice.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+                          customer: invoice.customer || 'Walk-in Customer',
+                          orderType: invoice.orderType || 'Dine In',
+                          paymentMethod: invoice.paymentMethod || 'Cash',
+                          storeInfo: invoice.storeInfo || DEFAULT_STORE_INFO,
+                          items: invoice.cartDetails || invoice.items || [],
+                          total: invoice.total || '0'
+                        };
+                        printWithBRRawPrinter(receiptData);
+                      }}
+                      className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                      title="Print with BR RawPrinter iOS / Bluetooth"
+                    >
+                      <Smartphone size={16} />
                     </button>
 
                     <InvoiceDownloadButton 
@@ -205,6 +229,7 @@ const Invoices = () => {
                             customer: invoice.customer || 'Walk-in Customer',
                             orderType: invoice.orderType || 'Dine In',
                             paymentMethod: invoice.paymentMethod || 'Cash',
+                            storeInfo: invoice.storeInfo || DEFAULT_STORE_INFO,
                             items: invoice.cartDetails || invoice.items || [],
                             total: invoice.total || '0'
                           };
@@ -212,9 +237,9 @@ const Invoices = () => {
                         }}
                         className="btn btn-primary flex items-center gap-1.5 shadow-sm text-xs font-bold" 
                         style={{ padding: '0.6rem 1rem' }}
-                        title="Send directly to thermal printer without preview modal"
+                        title="Send directly to LAN thermal printer"
                       >
-                        <Printer size={15} /> Direct Print
+                        <Printer size={15} /> LAN Print
                       </button>
 
                       <button 
@@ -226,16 +251,16 @@ const Invoices = () => {
                             customer: invoice.customer || 'Walk-in Customer',
                             orderType: invoice.orderType || 'Dine In',
                             paymentMethod: invoice.paymentMethod || 'Cash',
+                            storeInfo: invoice.storeInfo || DEFAULT_STORE_INFO,
                             items: invoice.cartDetails || invoice.items || [],
                             total: invoice.total || '0'
                           };
-                          openDirectNokoPrint(receiptData);
+                          printWithBRRawPrinter(receiptData);
                         }}
-                        className="btn flex items-center gap-1.5 shadow-sm text-xs font-bold text-white bg-slate-900 hover:bg-slate-800" 
-                        style={{ padding: '0.6rem 1rem' }}
-                        title="Send receipt directly to NokoPrint app on tablet"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 shadow-sm transition-all active:scale-95 cursor-pointer" 
+                        title="Print using BR RawPrinter iOS Application"
                       >
-                        <Smartphone size={15} /> Noko Print
+                        <Smartphone size={15} className="text-indigo-600" /> BR RawPrinter
                       </button>
 
                       <button 
@@ -284,7 +309,7 @@ const Invoices = () => {
         )}
       </div>
 
-      {/* 3-Inch Professional Thermal Receipt Modal (NokoPrint Ready) */}
+      {/* 3-Inch Professional Thermal Receipt Modal */}
       <ThermalReceiptModal 
         isOpen={!!receiptModalInvoice}
         onClose={() => setReceiptModalInvoice(null)}

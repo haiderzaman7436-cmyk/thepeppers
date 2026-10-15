@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, getDocs, doc, updateDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, Grid, Tag, Pizza, Sandwich, Utensils, Cookie, CupSoda, PlusCircle, Coffee, X, CreditCard, DollarSign, Smartphone, RotateCw, Printer, ChevronRight } from 'lucide-react';
-import { printThermalReceipt, openDirectNokoPrint } from '../utils/thermalPrinter';
+import { printThermalReceipt, printWithBRRawPrinter, getPrinterConfig, DEFAULT_STORE_INFO } from '../utils/thermalPrinter';
 
 const POS = () => {
   const [inventory, setInventory] = useState([]);
@@ -209,7 +209,7 @@ const POS = () => {
     confirmCheckout();
   };
 
-  const confirmCheckout = async (printMode = 'thermal') => {
+  const confirmCheckout = async (mode = 'thermal') => {
     if (cart.length === 0 || isProcessing) return;
     setIsProcessing(true);
 
@@ -229,6 +229,7 @@ const POS = () => {
         items: cart.reduce((acc, curr) => acc + curr.quantity, 0),
         total: `Rs ${totalAmount}`,
         totalCost: totalCost,
+        storeInfo: DEFAULT_STORE_INFO,
         cartDetails: cart.map(c => ({ 
           id: c.id, 
           name: c.name, 
@@ -241,7 +242,7 @@ const POS = () => {
         createdAt: new Date()
       };
 
-      // Prepare 3-inch receipt data
+      // Prepare 3-inch (80mm) thermal receipt data
       const receiptData = {
         orderNumber: orderNum,
         date: new Date().toLocaleDateString(),
@@ -249,6 +250,7 @@ const POS = () => {
         customer: custName,
         orderType: orderType,
         paymentMethod: paymentMethod,
+        storeInfo: DEFAULT_STORE_INFO,
         items: cart.map(c => ({
           name: c.name,
           quantity: c.quantity,
@@ -257,10 +259,12 @@ const POS = () => {
         total: `Rs ${totalAmount}`
       };
 
-      // DIRECT PRINT: Send directly to thermal printer or NokoPrint immediately with zero preview modal delay!
-      if (printMode === 'nokoprint') {
-        openDirectNokoPrint(receiptData);
+      const printerConfig = getPrinterConfig();
+
+      if (mode === 'rawprinter') {
+        printWithBRRawPrinter(receiptData);
       } else {
+        // DIRECT PRINT: Sends to LAN 192.168.100.55 & opens browser thermal print
         printThermalReceipt(receiptData);
       }
 
@@ -293,9 +297,9 @@ const POS = () => {
 
       // Fast visual confirmation toast
       setOrderSuccessMessage(
-        printMode === 'nokoprint' 
-          ? `Order #${orderNum} completed & sent directly to NokoPrint!` 
-          : `Order #${orderNum} completed & sent directly to printer!`
+        mode === 'rawprinter'
+          ? `Order #${orderNum} completed & sent to BR RawPrinter!`
+          : `Order #${orderNum} completed & sent to LAN printer (${printerConfig.ip})!`
       );
       setTimeout(() => setOrderSuccessMessage(null), 3500);
 
@@ -687,34 +691,31 @@ const POS = () => {
             <span className="font-black text-2xl text-[var(--accent-primary)] tracking-tight">Rs {calculateTotal()}</span>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <button 
+              type="button"
               onClick={() => confirmCheckout('thermal')}
               disabled={cart.length === 0 || isProcessing}
-              className="flex-1 py-3.5 sm:py-4 rounded-xl font-bold text-sm sm:text-base text-white flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 shadow-md shadow-red-500/20 cursor-pointer"
+              className="w-full py-3.5 rounded-xl font-bold text-sm sm:text-base text-white flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-red-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ 
                 backgroundColor: cart.length === 0 ? '#e5e7eb' : 'var(--accent-primary)', 
                 cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
                 color: cart.length === 0 ? '#9ca3af' : '#ffffff'
               }}
-              title="Direct Pay & Print immediately"
+              title="Pay & Direct Print to LAN Thermal Printer (192.168.100.55)"
             >
-              <Printer size={18} /> <span>{isProcessing ? "Processing..." : "Direct Pay & Print"}</span>
+              <Printer size={18} /> <span>{isProcessing ? "Processing..." : "Pay & LAN Print"}</span>
             </button>
 
             <button 
               type="button"
-              onClick={() => confirmCheckout('nokoprint')}
+              onClick={() => confirmCheckout('rawprinter')}
               disabled={cart.length === 0 || isProcessing}
-              className="px-3.5 sm:px-4 py-3.5 sm:py-4 rounded-xl font-bold text-xs sm:text-sm text-white flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer shrink-0"
-              style={{ 
-                backgroundColor: cart.length === 0 ? '#e5e7eb' : '#0f172a', 
-                cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
-                color: cart.length === 0 ? '#9ca3af' : '#ffffff'
-              }}
-              title="Pay & Send directly to NokoPrint app on tablet"
+              className="w-full py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Pay & Print with BR RawPrinter iOS / Bluetooth Application"
             >
-              <Smartphone size={16} /> <span>Noko Print</span>
+              <Smartphone size={16} className="text-indigo-600" />
+              <span>Pay & BR RawPrinter</span>
             </button>
           </div>
 

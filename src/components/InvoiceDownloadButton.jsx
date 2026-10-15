@@ -70,7 +70,7 @@ const InvoiceDownloadButton = ({
               ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
               : 'bg-white hover:bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-300 active:scale-95'
           }`}
-          title="Download 80x210 Thermal Slip"
+          title="Download 3-inch Thermal Slip"
         >
           {loadingType ? (
             <Loader2 size={14} className="animate-spin text-[var(--accent-primary)]" />
@@ -89,7 +89,7 @@ const InvoiceDownloadButton = ({
             style={{ filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.1))' }}
           >
             <div className="px-3 py-1 border-b border-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-              80x210 Thermal Slip
+              3-inch (80mm) Thermal Slip
             </div>
             
             <button
@@ -101,7 +101,7 @@ const InvoiceDownloadButton = ({
               </div>
               <div>
                 <div className="font-bold">Thermal Slip (PDF)</div>
-                <div className="text-[10px] text-gray-500">80mm × 210mm roll size</div>
+                <div className="text-[10px] text-gray-500">3-inch roll size</div>
               </div>
             </button>
 
@@ -136,7 +136,7 @@ const InvoiceDownloadButton = ({
               ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
               : 'bg-white hover:bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-300 active:scale-95'
           }`}
-          title="Download 80x210 Thermal Slip PDF"
+          title="Download 3-inch Thermal Slip PDF"
         >
           {loadingType ? (
             <Loader2 size={15} className="animate-spin text-[var(--accent-primary)]" />
@@ -145,7 +145,7 @@ const InvoiceDownloadButton = ({
           ) : (
             <Download size={15} className="text-[var(--accent-primary)]" />
           )}
-          <span>{loadingType ? 'Generating...' : successType ? 'Downloaded!' : `${label} (80×210)`}</span>
+          <span>{loadingType ? 'Generating...' : successType ? 'Downloaded!' : `${label} (3-inch)`}</span>
         </button>
 
         <button
@@ -177,7 +177,7 @@ const InvoiceDownloadButton = ({
             </div>
             <div>
               <div className="font-bold text-gray-900">Thermal Slip (PDF)</div>
-              <div className="text-[10px] text-gray-500">80mm × 210mm roll size</div>
+              <div className="text-[10px] text-gray-500">3-inch roll size</div>
             </div>
           </button>
 

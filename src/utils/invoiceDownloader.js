@@ -1,6 +1,6 @@
 import * as jspdfModule from 'jspdf';
 import html2canvasLib from 'html2canvas';
-import { formatCurrency, RECEIPT_FONTS, RECEIPT_SIZES, generateBarcodeSVG } from './thermalPrinter';
+import { formatCurrency, RECEIPT_FONTS, RECEIPT_SIZES, generateBarcodeSVG, DEFAULT_STORE_INFO } from './thermalPrinter';
 import { LOGO_BASE64 } from '../assets/logoBase64';
 
 // Robust cross-bundler resolver for jsPDF constructor
@@ -89,20 +89,14 @@ export const normalizeInvoiceData = (raw) => {
     paymentMethod,
     items,
     total,
-    storeInfo: raw.storeInfo || {
-      name: "THE PEPPERS",
-      tagline: "Flavor & Spice",
-      category: "Fast Food • Pizza • Burgers • Platters",
-      phone: "0300-1234567",
-      address: "Main Branch, Food Street"
-    }
+    storeInfo: raw.storeInfo || DEFAULT_STORE_INFO
   };
 };
 
 /**
  * Creates an off-screen DOM element positioned within layout coordinates for reliable canvas rasterization
  */
-const createOffscreenInvoiceElement = (htmlContent, width = 302) => {
+const createOffscreenInvoiceElement = (htmlContent, width = 272) => {
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.left = '0';
@@ -117,7 +111,7 @@ const createOffscreenInvoiceElement = (htmlContent, width = 302) => {
 };
 
 /**
- * Self-contained HTML with full inline styles for the 80mm x 210mm Thermal Receipt
+ * Self-contained HTML with full inline styles for the 3-inch (80mm) Thermal Receipt
  * Designed with original logo, calibrated typography, and crisp SVG barcode
  */
 export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
@@ -130,13 +124,7 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
     paymentMethod = 'Cash',
     items = [],
     total = 0,
-    storeInfo = {
-      name: "THE PEPPERS",
-      tagline: "Flavor & Spice",
-      category: "Fast Food • Pizza • Burgers • Platters",
-      phone: "0300-1234567",
-      address: "Main Branch, Food Street"
-    }
+    storeInfo = DEFAULT_STORE_INFO
   } = data;
 
   // Retrieve user customization preferences
@@ -173,12 +161,12 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
     const price = Number(item.price || item.parsedPrice) || 0;
     const lineTotal = price * qty;
     return `
-      <div style="display: flex; align-items: flex-start; padding: 3.5px 0; border-bottom: 0.5px dashed #cccccc;">
+      <div style="display: flex; align-items: flex-start; padding: 3px 0; border-bottom: 0.5px dashed #cccccc;">
         <div style="width: 32px; min-width: 32px; font-weight: 700; font-size: ${sizeConfig.base}; color: #000000; text-align: left; padding-top: 0.5px;">
           ${qty}x
         </div>
         <div style="flex: 1; padding: 0 4px; text-align: left;">
-          <div style="font-weight: 600; font-size: ${sizeConfig.base}; color: #000000; word-break: break-word; line-height: 1.3;">
+          <div style="font-weight: 600; font-size: ${sizeConfig.base}; color: #000000; word-break: break-word; line-height: 1.25;">
             ${item.name}
           </div>
           ${qty > 1 ? `<div style="font-size: calc(${sizeConfig.base} - 1.5px); font-weight: 500; color: #333333; margin-top: 1px;">@ ${formatCurrency(price)} each</div>` : ''}
@@ -191,11 +179,11 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
   }).join('');
 
   return `
-    <div style="width: 272px; min-height: ${isFixedLength ? '700px' : 'auto'}; height: auto; margin: 0 auto; padding: 12px 10px 16px 10px; background: #ffffff; color: #000000; font-family: ${fontFamily}; box-sizing: border-box; font-size: ${sizeConfig.base}; line-height: 1.35; -webkit-font-smoothing: antialiased;">
+    <div style="width: 272px; min-height: ${isFixedLength ? '550px' : 'auto'}; height: auto; margin: 0 auto; padding: 12px 10px 16px 10px; background: #ffffff; color: #000000; font-family: ${fontFamily}; box-sizing: border-box; font-size: ${sizeConfig.base}; line-height: 1.35; -webkit-font-smoothing: antialiased;">
       <!-- Store Header with Original Logo -->
-      <div style="text-align: center; margin-bottom: 6px;">
+      <div style="text-align: center; margin-bottom: 5px;">
         ${showLogo ? `<img src="${LOGO_BASE64}" alt="The Peppers" style="width: 52px; height: 52px; object-fit: contain; margin: 0 auto 5px auto; display: block; border-radius: 50%; border: 1.5px solid #000000;" />` : ''}
-        <div style="font-size: ${sizeConfig.brand}; font-weight: 800; letter-spacing: 0.8px; line-height: 1.15; margin-bottom: 2px; text-transform: uppercase; color: #000000;">${storeInfo.name}</div>
+        <div style="font-size: ${sizeConfig.brand}; font-weight: 800; letter-spacing: 0.5px; line-height: 1.15; margin-bottom: 2px; text-transform: uppercase; color: #000000;">${storeInfo.name}</div>
         ${showStoreInfo ? `
           <div style="font-size: ${sizeConfig.sub}; font-style: italic; color: #111111; margin-bottom: 2px; font-weight: 500;">~ ${storeInfo.tagline} ~</div>
           <div style="font-size: ${sizeConfig.sub}; color: #222222; font-weight: 500; line-height: 1.3;">${storeInfo.category}</div>
@@ -227,7 +215,7 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
       </div>
 
       <!-- Items Header -->
-      <div style="display: flex; align-items: center; font-weight: 700; font-size: calc(${sizeConfig.base} - 1px); padding: 3.5px 0; border-top: 1px dashed #000000; border-bottom: 1px dashed #000000; margin: 6px 0 3px 0; text-transform: uppercase; color: #000000; letter-spacing: 0.5px;">
+      <div style="display: flex; align-items: center; font-weight: 700; font-size: calc(${sizeConfig.base} - 1px); padding: 3px 0; border-top: 1px dashed #000000; border-bottom: 1px dashed #000000; margin: 5px 0 2px 0; text-transform: uppercase; color: #000000; letter-spacing: 0.3px;">
         <span style="width: 32px; text-align: left;">QTY</span>
         <span style="flex: 1; padding: 0 4px; text-align: left;">ITEM DESCRIPTION</span>
         <span style="width: 78px; text-align: right;">AMOUNT</span>
@@ -286,7 +274,37 @@ export const generateThermalReceiptSnippetHTML = (data, options = {}) => {
 };
 
 /**
- * Downloads invoice strictly as an 80mm x 210mm Thermal Slip PDF
+ * Generates an ultra-sharp PNG Blob of the 3-inch (80mm) thermal receipt
+ */
+export const generateThermalReceiptBlob = async (data, options = {}) => {
+  const safeData = normalizeInvoiceData(data);
+  const htmlContent = generateThermalReceiptSnippetHTML(safeData, options);
+  const container = createOffscreenInvoiceElement(htmlContent, 272);
+  const html2canvas = getHtml2Canvas();
+
+  try {
+    const canvas = await html2canvas(container, {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Failed to create thermal receipt blob"));
+      }, 'image/png');
+    });
+  } finally {
+    if (container && container.parentNode) {
+      document.body.removeChild(container);
+    }
+  }
+};
+
+/**
+ * Downloads invoice strictly as a 3-inch (80mm) Thermal Slip PDF
  */
 export const downloadThermalReceiptPDF = async (data, options = {}) => {
   const safeData = normalizeInvoiceData(data);
@@ -304,10 +322,17 @@ export const downloadThermalReceiptPDF = async (data, options = {}) => {
 
     const imgData = canvas.toDataURL('image/png');
     
-    // Dynamic height matching content length perfectly
+    // Retrieve paper length preference safely
+    let paperLengthPref = options.paperLength;
+    if (!paperLengthPref && typeof window !== 'undefined' && window.localStorage) {
+      paperLengthPref = window.localStorage.getItem('thepeppers_thermal_paper_length');
+    }
+    const isFixedLength = paperLengthPref === 'fixed';
+
+    // Dynamic height matching content length perfectly on 3-inch (80mm) roll
     const pageWidth = 80;
     const imgHeight = (canvas.height * pageWidth) / canvas.width;
-    const pageHeight = isFixedLength ? 210 : Math.max(Math.ceil(imgHeight), 50);
+    const pageHeight = isFixedLength ? 210 : Math.max(Math.ceil(imgHeight), 40);
 
     const pdf = createPDFInstance({
       orientation: 'portrait',
@@ -315,14 +340,14 @@ export const downloadThermalReceiptPDF = async (data, options = {}) => {
       format: [pageWidth, pageHeight]
     });
 
-    // Render within dynamic page bounds
-    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+    // Render within dynamic page bounds (keeping natural aspect ratio)
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeight);
     
-    const filename = `ThePeppers-Receipt-80mm-TP${safeData.orderNumber || 'Invoice'}.pdf`;
+    const filename = `ThePeppers-Receipt-3inch-TP${safeData.orderNumber || 'Invoice'}.pdf`;
     pdf.save(filename);
     return true;
   } catch (err) {
-    console.error("Error generating 80x210 Thermal Receipt PDF:", err);
+    console.error("Error generating 3-inch Thermal Receipt PDF:", err);
     throw err;
   } finally {
     if (container && container.parentNode) {
@@ -332,7 +357,7 @@ export const downloadThermalReceiptPDF = async (data, options = {}) => {
 };
 
 /**
- * Downloads invoice as a crisp 80mm x 210mm PNG thermal slip image (ready for WhatsApp / Sharing)
+ * Downloads invoice as a crisp 3-inch (80mm) PNG thermal slip image (ready for WhatsApp / Sharing)
  */
 export const downloadInvoiceImage = async (data, options = {}) => {
   const safeData = normalizeInvoiceData(data);
@@ -351,7 +376,7 @@ export const downloadInvoiceImage = async (data, options = {}) => {
     const dataUrl = canvas.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = dataUrl;
-    link.download = `ThePeppers-Receipt-80x210-TP${safeData.orderNumber || 'Invoice'}.png`;
+    link.download = `ThePeppers-Receipt-3inch-TP${safeData.orderNumber || 'Invoice'}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -367,7 +392,7 @@ export const downloadInvoiceImage = async (data, options = {}) => {
 };
 
 /**
- * Single-point download handler — exclusively outputs the 80mm x 210mm thermal slip
+ * Single-point download handler — exclusively outputs the 3-inch (80mm) thermal slip
  */
 export const downloadInvoice = async (data, format = 'pdf', options = {}) => {
   if (format === 'image') {
